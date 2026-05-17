@@ -1,0 +1,28 @@
+node_modules/
+.next/
+.next-dev/
+dist/
+out/
+coverage/
+logs/
+.turbo/
+.env
+.env.local
+.env.*.local
+.brand-preview/
+.playwright-mcp/
+
+# Foundry / Solidity
+contracts/cache/
+contracts/broadcast/
+contracts/out/
+contracts/lib/
+contracts/deployments/*.log
+
+# Noir / Barretenberg
+circuits/target/
+**/target/
+
+# OS / editor
+.DS_Store
+Thumbs.db

@@ -1,0 +1,6 @@
+[workspace]
+members = ["ranking", "settlement"]
+default-member = "settlement"
+
+# ZK implementation must mirror the compatible toolchain from zkv-uno.
+# Run Noir/Barretenberg commands only inside WSL.

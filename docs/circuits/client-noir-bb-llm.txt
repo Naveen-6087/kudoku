@@ -1,0 +1,734 @@
+Generate a Solidity Verifier
+This guide shows how to generate a Solidity Verifier with Barretenberg and deploy it on the Remix IDE. It is assumed that:
+
+You are comfortable with the Solidity programming language and understand how contracts are deployed on the Ethereum network
+You have Noir installed and you have a Noir program. If you don't, get started with Nargo, then follow through the Barretenberg quick start
+You are comfortable navigating RemixIDE. If you aren't or you need a refresher, you can find some video tutorials here that could help you.
+Rundown
+Generating a Solidity Verifier with Barretenberg contract is actually a one-command process. However, compiling it and deploying it can have some caveats. Here's the rundown of this guide:
+
+How to generate a solidity smart contract
+How to compile the smart contract in the RemixIDE
+How to deploy it to a testnet
+Step 1 - Generate a solidity contract
+# Generate the verification key. You need to pass the `--oracle_hash keccak` flag when generating vkey and proving
+# to instruct bb to use keccak as the hash function, which is more optimal in Solidity
+bb write_vk -b ./target/<noir_artifact_name>.json -o ./target --oracle_hash keccak
+
+# Generate the Solidity verifier from the vkey
+bb write_solidity_verifier -k ./target/vk -o ./target/Verifier.sol
+
+
+replacing <noir_artifact_name> with the name of your Noir project. A Verifier.sol contract is now in the target folder and can be deployed to any EVM blockchain acting as a verifier smart contract.
+
+Step 2 - Compiling
+We will mostly skip the details of RemixIDE, as the UI can change from version to version. For now, we can just open Remix and create a blank workspace.
+
+Create Workspace
+
+We will create a new file to contain the contract Nargo generated, and copy-paste its content.
+
+warning
+You'll likely see a warning advising you to not trust pasted code. While it is an important warning, it is irrelevant in the context of this guide and can be ignored. We will not be deploying anywhere near a mainnet.
+
+To compile the verifier, we can navigate to the compilation tab:
+
+Compilation Tab
+
+Remix should automatically match a suitable compiler version. However, hitting the "Compile" button will most likely tell you the contract is too big to deploy on mainnet, or complain about a stack too deep:
+
+Contract code too big Stack too deep
+
+To avoid this, you can just use some optimization. Open the "Advanced Configurations" tab and enable optimization. The default 200 runs will suffice.
+
+Compilation success
+
+Step 3 - Deploying
+At this point we should have a compiled contract ready to deploy. If we navigate to the deploy section in Remix, we will see many different environments we can deploy to. The steps to deploy on each environment would be out-of-scope for this guide, so we will just use the default Remix VM.
+
+Looking closely, we will notice that our "Solidity Verifier" is composed on multiple contracts working together. Remix will take care of the dependencies for us so we can simply deploy the Verifier contract by selecting it and hitting "deploy":
+
+Deploying HonkVerifier
+
+A contract will show up in the "Deployed Contracts" section.
+
+Step 4 - Verifying
+To verify a proof using the Solidity verifier contract, we call the verify function:
+
+function verify(bytes calldata _proof, bytes32[] calldata _publicInputs) external view returns (bool)
+
+First generate a proof with bb. We need a Prover.toml file for our inputs. Run:
+
+nargo check
+
+This will generate a Prover.toml you can fill with the values you want to prove. We can now execute the circuit with nargo and then use the proving backend to prove:
+
+nargo execute <witness-name>
+bb prove -b ./target/<circuit-name>.json -w ./target/<witness-name> -o ./target --oracle_hash keccak
+
+Binary Output Format
+
+Barretenberg outputs proof and public_inputs files in binary format. The binary format is fields-compatible, meaning it can be split into 32-byte chunks where each chunk represents a field element.
+
+This produces a proof file with the proof data and a public_inputs file with the public input values.
+
+A programmatic example of how the verify function is called can be seen in the example zk voting application here:
+
+function castVote(bytes calldata proof, uint proposalId, uint vote, bytes32 nullifierHash) public returns (bool) {
+  // ...
+  bytes32[] memory publicInputs = new bytes32[](4);
+  publicInputs[0] = merkleRoot;
+  publicInputs[1] = bytes32(proposalId);
+  publicInputs[2] = bytes32(vote);
+  publicInputs[3] = nullifierHash;
+  require(verifier.verify(proof, publicInputs), "Invalid proof");
+
+
+Return Values
+A circuit doesn't have the concept of a return value. Return values are just syntactic sugar in Noir.
+
+Under the hood, the return value is passed as an input to the circuit and is checked at the end of the circuit program.
+
+For example, if you have Noir program like this:
+
+fn main(
+    // Public inputs
+    pubkey_x: pub Field,
+    pubkey_y: pub Field,
+    // Private inputs
+    priv_key: Field,
+) -> pub Field
+
+the verify function will expect the public inputs array (second function parameter) to be of length 3, the two inputs and the return value.
+
+Passing only two inputs will result in an error such as PUBLIC_INPUT_COUNT_INVALID(3, 2).
+
+In this case, the inputs parameter to verify would be an array ordered as [pubkey_x, pubkey_y, return].
+
+Structs
+You can pass structs to the verifier contract. They will be flattened so that the array of inputs is 1-dimensional array.
+
+For example, consider the following program:
+
+struct Type1 {
+  val1: Field,
+  val2: Field,
+}
+
+struct Nested {
+  t1: Type1,
+  is_true: bool,
+}
+
+fn main(x: pub Field, nested: pub Nested, y: pub Field) {
+  //...
+}
+
+The order of these inputs would be flattened to: [x, nested.t1.val1, nested.t1.val2, nested.is_true, y]
+
+The other function you can call is our entrypoint verify function, as defined above.
+
+tip
+It's worth noticing that the verify function is actually a view function. A view function does not alter the blockchain state, so it doesn't need to be distributed (i.e. it will run only on the executing node), and therefore doesn't cost any gas.
+
+This can be particularly useful in some situations. If Alice generated a proof and wants Bob to verify its correctness, Bob doesn't need to run Nargo, NoirJS, or any Noir specific infrastructure. He can simply make a call to the blockchain with the proof and verify it is correct without paying any gas.
+
+It would be incorrect to say that a Noir proof verification costs any gas at all. However, most of the time the result of verify is used to modify state (for example, to update a balance, a game state, etc). In that case the whole network needs to execute it, which does incur gas costs (calldata and execution, but not storage).
+
+Compatibility with different EVM chains
+Barretenberg proof verification requires the ecMul, ecAdd, ecPairing, and modexp EVM precompiles. You can deploy and use the verifier contract on all EVM chains that support the precompiles.
+
+EVM Diff provides a great table of which EVM chains support which precompiles: https://www.evmdiff.com/features?feature=precompiles
+
+Some EVM chains manually tested to work with the Barretenberg verifier include:
+
+Optimism
+Arbitrum
+Polygon PoS
+Scroll
+Celo
+BSC
+Blast L2
+Avalanche C-Chain
+Mode
+Linea
+Moonbeam
+Meanwhile, some EVM chains manually tested that failed to work with the Barretenberg verifier include:
+
+zkSync ERA
+Polygon zkEVM
+Pull requests to update this section are welcome and appreciated if you have compatibility updates on existing / new chains to contribute: https://github.com/noir-lang/noir
+
+What's next
+Now that you know how to call a Noir Solidity Verifier on a smart contract using Remix, you should be comfortable with using it with some programmatic frameworks. You can find other tools, examples, boilerplates and libraries in the awesome-noir repository.
+
+Barretenberg on the browser
+bb.js is the TypeScript/JavaScript prover and verifier library for Barretenberg. It provides both a command-line interface and a programmatic API for generating and verifying zero-knowledge proofs in Node.js and browser environments.
+
+Overview
+bb.js supports multiple proof systems:
+
+UltraHonk: The current recommended proof system with various hash function options
+MegaHonk: Alternative Honk implementation
+ClientIVC: For Aztec-specific client-side proving
+Installation
+As a Library
+Install bb.js as a dependency in your project:
+
+npm install @aztec/bb.js
+
+or with yarn:
+
+yarn add @aztec/bb.js
+
+Proving and Verifying with UltraHonk
+Using the UltraHonkBackend Class
+The UltraHonkBackend class provides a high-level interface for proof generation and verification. You can import any specific backend (i.e. UltraHonk):
+
+import { UltraHonkBackend} from '@aztec/bb.js';
+
+Using a precompiled program and a witness from nargo execute, you can directly import it and initialize the backend:
+
+// Load circuit bytecode (from Noir compiler output)
+const circuitPath = path.join(__dirname, 'fixtures/main/target/program.json');
+const circuitJson = JSON.parse(readFileSync(circuitPath, 'utf8'));
+const bytecode = circuitJson.bytecode;
+
+// Load witness data
+const witnessPath = path.join(__dirname, 'fixtures/main/target/program.gz');
+const witnessBuffer = readFileSync(witnessPath);
+
+// Initialize backend
+const backend = new UltraHonkBackend(bytecode);
+
+And just prove it using the witness:
+
+// Generate proof with Keccak for EVM verification
+const proofData: ProofData = await backend.generateProof(witnessBuffer, {
+  keccak: true
+});
+
+const provingTime = Date.now() - startTime;
+console.log(`Proof generated in ${provingTime}ms`);
+console.log(`Proof size: ${proofData.proof.length} bytes`);
+console.log(`Public inputs: ${proofData.publicInputs.length}`);
+
+Verification is similarly simple:
+
+// Verify the proof
+console.log('Verifying proof...');
+const isValid = await backend.verifyProof(proofData, { keccak: true });
+console.log(`Proof verification: ${isValid ? 'SUCCESS' : 'FAILED'}`);
+
+Working with Different Hash Functions
+UltraHonk supports different hash functions for different target verification environments:
+
+// Standard UltraHonk (uses Poseidon)
+const proof = await backend.generateProof(witnessBuffer);
+expect(proof.proof).to.have.length.greaterThan(0);
+
+// Keccak variant (for EVM verification)
+const proofKeccak = await backend.generateProof(witnessBuffer, { keccak: true });
+expect(proofKeccak.proof).to.have.length.greaterThan(0);
+
+// ZK variants for recursive proofs
+const proofKeccakZK = await backend.generateProof(witnessBuffer, { keccakZK: true });
+expect(proofKeccakZK.proof).to.have.length.greaterThan(0);
+
+Getting Verification Keys (VK)
+// Get verification key
+const vk = await backend.getVerificationKey();
+
+// For a solidity verifier:
+const vkKeccak = await backend.getVerificationKey({ keccak: true });
+
+Getting Solidity Verifier
+The solidity verifier is the VK, but with some logic that allows for non-interactive verification:
+
+// Needs the keccak hash variant of the VK
+const solidityContract = await backend.getSolidityVerifier(vkKeccak);
+
+Using the Low-Level API
+For more control, you can use the Barretenberg API directly:
+
+const api = await Barretenberg.new({ threads: 1 });
+
+// Blake2s hashing
+const input = Buffer.from('hello world!');
+const hash = await api.blake2s(input);
+
+// Pedersen commitment
+const left = Fr.random();
+const right = Fr.random();
+const commitment = await api.pedersenCommit([left, right], 0);
+
+await api.destroy();
+
+Browser Environment Considerations
+Multithreading Support
+To enable multithreading in browsers using some frameworks (ex. Next.js), you may need to set COOP and COEP headers:
+
+// Next.js example configuration
+{
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'Cross-Origin-Embedder-Policy', value: 'require-corp' },
+          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+        ],
+      },
+    ];
+  },
+}
+
+Performance Optimization
+Thread Configuration
+You can define specific thread counts in case you need the cores for other things in your app:
+
+// Auto-detect optimal thread count (default)
+const api = await Barretenberg.new();
+
+// Manual thread configuration
+const api = await Barretenberg.new({
+  threads: Math.min(navigator.hardwareConcurrency || 1, 8)
+});
+
+// Single-threaded for compatibility
+const api = await Barretenberg.new({ threads: 1 });
+
+Memory Management
+It can be useful to manage memory manually, specially if targeting specific memory-constrained environments (ex. Safari):
+
+// Configure initial and maximum memory
+const api = await Barretenberg.new({
+  threads: 4,
+  memory: {
+    initial: 128 * 1024 * 1024,  // 128MB
+    maximum: 512 * 1024 * 1024   // 512MB
+  }
+});
+
+Recursive Aggregation
+This guide shows you how to prove recursive programs using bb.js. We will be using Noir as the frontend language.
+
+For the sake of clarity, it is assumed that:
+
+You already have a NoirJS app. If you don't, please visit the NoirJS tutorial and the reference.
+You are familiar with what are recursive proofs and you have read the recursion explainer
+You already built a recursive circuit following the reference, and understand how it works.
+It is also assumed that you're not using noir_wasm for compilation, and instead you've used nargo compile to generate the json you're now importing into your project.
+
+Step 1: Setup
+In a standard recursive app, you're dealing with at least two circuits:
+
+main or inner: a circuit of type assert(x != y), which we want to embed in another circuit recursively.
+recursive or outer: a circuit that verifies main.
+First, let's import the necessary modules and set up our circuits:
+
+import { UltraHonkBackend, ProofData, Barretenberg, RawBuffer, deflattenFields } from '@aztec/bb.js';
+import { Noir } from '@noir-lang/noir_js';
+
+Then we need to load our circuit bytecode and set up the Noir instances:
+
+// Load main circuit bytecode
+const mainCircuitPath = path.join(__dirname, 'fixtures/main/target/program.json');
+const mainCircuitJson = JSON.parse(readFileSync(mainCircuitPath, 'utf8'));
+const mainBytecode = mainCircuitJson.bytecode;
+
+// Load recursive circuit bytecode
+const recursiveCircuitPath = path.join(__dirname, 'fixtures/recursive/target/recursive.json');
+const recursiveCircuitJson = JSON.parse(readFileSync(recursiveCircuitPath, 'utf8'));
+const recursiveBytecode = recursiveCircuitJson.bytecode;
+
+// Create Noir instances
+mainNoir = new Noir(mainCircuitJson);
+recursiveNoir = new Noir(recursiveCircuitJson);
+
+The first program can be anything, so we should focus on the second one. The circuit could be something like so:
+
+global HONK_VK_SIZE: u32 = 112;
+global HONK_PROOF_SIZE: u32 = 507;
+global HONK_IDENTIFIER: u32 = 1;
+
+fn main(
+    verification_key: [Field; HONK_VK_SIZE],
+    proof: [Field; HONK_PROOF_SIZE],
+    public_inputs: pub [Field; 1],
+) {
+    std::verify_proof_with_type(
+        verification_key,
+        proof,
+        public_inputs,
+        0x0,
+        HONK_IDENTIFIER,
+    );
+}
+
+A common scenario is one where you want to create a proof of multiple proof verifications, like a binary tree. Some projects and demos like billion zk voters and the 2023 progcrypto activation demo are examples of 2-in-1 circuits.
+
+Proof Types
+Different proof systems can have different proof and VK sizes and types. You need to plan this in advance depending on your proof.
+
+In this case we're using the default HONK proof.
+
+Step 2: Witness generation
+As with every Noir program, you need to execute it and generate the witness. This is no different from a regular noir.js program, except you want to do it twice:
+
+// Generate witness for main circuit
+const { witness: mainWitness } = await mainNoir.execute({ x: 1, y: 2 });
+
+// Note: recursiveWitness will be generated later after we have the proof inputs
+// const { witness: recursiveWitness } = await recursiveNoir.execute(recursiveInputs);
+
+warning
+Noir will generate a witness which doesn't mean it is constrained or valid. The proving backend (in this case Barretenberg) is responsible for the generation of the proof.
+
+This is why you should refer this technique as "recursive aggregation" instead of "recursion".
+
+warning
+Always keep in mind what is actually happening on your development process, otherwise you'll quickly become confused about what circuit we are actually running and why!
+
+In this case, you can imagine that Alice (running the main circuit) is proving something to Bob (running the recursive circuit), and Bob is verifying her proof within his proof.
+
+With this in mind, it becomes clear that our intermediate proof is the one meant to be verified within another circuit, so it must be Alice's. Actually, the only final proof in this theoretical scenario would be the last one, sent onchain.
+
+Step 3 - Proving Backend
+With the witness, we are now moving into actually proving. In this example, we will be using bb.js for generating the proof and the verification key of the inner circuit.
+
+Since we're using Honk proofs, let's instantiate the UltraHonkBackend just as in the browser how-to-guide:
+
+// Setup backend for main circuit (inner circuit)
+mainBackend = new UltraHonkBackend(
+  mainBytecode,
+  { threads: 8 },
+  { recursive: true }
+);
+
+// Setup backend for recursive circuit (outer circuit)
+recursiveBackend = new UltraHonkBackend(
+  recursiveBytecode,
+  { threads: 8 },
+  { recursive: false }
+);
+
+tip
+We're setting 8 threads here, but you can use the os.cpus() object in nodejs or navigator.hardwareConcurrency on the browser to make the most out of those cpu cores
+
+We can now generate the proof and the verification key (VK), for example:
+
+// Generate proof for main circuit with keccakZK for recursive verification
+const mainProofData = await mainBackend.generateProof(mainWitness, { keccakZK: true });
+
+// Generate verification key for main circuit
+const mainVerificationKey = await mainBackend.getVerificationKey({ keccakZK: true });
+
+info
+One common mistake is to forget who generates the verification key.
+
+In a situation where Alice and Bob are playing a battleships game and Alice is proving to Bob that he shot an aircraft carrier, Bob should generate the verification key himself. If Bob just accepts the proof and the VK from Alice, this means Alice could prove any circuit (i.e. 1 != 2) instead of the actual "proof that Bob sank my ship"
+
+We now need to prepare our inputs to be fed correctly into the recursive program. This means getting the VK and the proof as fields. We can use the default Barretenberg API for this:
+
+// Convert proof and VK to fields for recursive circuit
+const barretenbergAPI = await Barretenberg.new({ threads: 1 });
+const proofAsFields = deflattenFields(new RawBuffer(mainProofData.proof));
+const vkAsFields = (await barretenbergAPI.acirVkAsFieldsUltraHonk(new RawBuffer(mainVerificationKey)))
+  .map(field => field.toString());
+
+// Prepare inputs for recursive circuit
+const recursiveInputs = {
+  proof: proofAsFields,
+  public_inputs: [2],
+  verification_key: vkAsFields
+};
+
+await barretenbergAPI.destroy();
+
+
+Step 4 - Recursive proof generation
+Having the proof and the VK in the correct format, generating a recursive proof is no different from a normal proof. You simply use the backend (with the recursive circuit) to generate it:
+
+// Generate witness for recursive circuit
+const { witness: recursiveWitness } = await recursiveNoir.execute(recursiveInputs);
+
+// Generate recursive proof
+const recursiveProofData = await recursiveBackend.generateProof(recursiveWitness);
+
+You can obviously chain this proof into another proof. In fact, if you're using recursive proofs, you're probably interested of using them this way!
+
+Example
+You can find a non-exhaustive example of recursive aggregation in the noir-examples repository.
+
+Keep in mind that recursive proof aggregation is very much an experimental way of using Barretenberg, and you may need to tweak or downgrade versions.
+
+Join the Noir discord for discussions, feedback and questions about anything regarding Noir and BB.
+
+Building a web app with Noir and Barretenberg
+NoirJS is a Typescript package meant to work both in a browser and a server environment.
+
+In this tutorial, we will combine NoirJS with Aztec's Barretenberg backend to build a simple web app. From here, you should get an idea on how to proceed with your own Noir projects!
+
+You can find the complete app code for this guide here.
+
+Dependencies
+Before we start, we want to make sure we have Node installed. If you don't have it already you can install it here, we recommend using Yarn as our package manager for this tutorial.
+
+We'll also need version 1.0.0-beta.15 nargo installed, see the Noir installation guide for details.
+
+Let's go barebones. Doing the bare minimum is not only simple, but also allows you to easily adapt it to almost any frontend framework.
+
+Barebones means we can immediately start with the dependencies even on an empty folder 😈:
+
+yarn add @noir-lang/noir_js@1.0.0-beta.15 @aztec/bb.js@3.0.0-nightly.20251104 buffer vite vite-plugin-node-polyfills@0.17.0
+
+
+Wait, what are these dependencies?
+
+noir_js is the main Noir package. It will execute our program, and generate the witness that will be sent to the backend.
+bb.js is the Typescript interface for Aztec's Barretenberg proving backend. It also uses the wasm version in order to run on the browser.
+info
+In this guide, we will install versions pinned to 1.0.0-beta.15. These work with Barretenberg version 3.0.0-nightly.20251104, so we are using that one version too. Feel free to try with older or later versions, though!
+
+Setting up our Noir program
+ZK is a powerful technology. An app that reveals computational correctness but doesn't reveal some of its inputs is almost unbelievable, yet Noir makes it as easy as a single line of code.
+
+tip
+It's not just you. We also enjoy syntax highlighting. Check out the Language Server
+
+All you need is a main.nr and a Nargo.toml file. You can follow the noirup installation and just run noirup -v 1.0.0-beta.15, or just create them by hand:
+
+mkdir -p circuit/src
+touch circuit/src/main.nr circuit/Nargo.toml
+
+To make our program interesting, let's give it a real use-case scenario: Bob wants to prove he is older than 18, without disclosing his age. Open main.nr and write:
+
+age_check
+fn main(age: u8) {
+    assert(age > 18);
+}
+
+
+Source code: examples/browser/src/main.nr#L1-L5
+
+This program accepts a private input called age, and simply proves this number is higher than 18. But to run this code, we need to give the compiler a Nargo.toml with at least a name and a type:
+
+[package]
+name = "circuit"
+type = "bin"
+
+This is all that we need to get started with Noir.
+
+my heart is ready for you, noir.js
+
+Compile compile compile
+Finally we're up for something cool. But before we can execute a Noir program, we need to compile it into ACIR: an abstract representation.
+
+This can be done by cd-ing into our circuit directory and running the nargo compile command.
+
+cd circuit
+
+nargo compile
+
+This will write the compiled circuit into the target directory, which we'll then load into our JS later on.
+
+Setting up our app
+Remember when apps only had one html and one js file? Well, that's enough for Noir webapps. Let's create them in the project root:
+
+touch index.html index.js
+
+And add something useful to our HTML file:
+
+index
+<!DOCTYPE html>
+<head>
+  <style>
+    .outer {
+        display: flex;
+        justify-content: space-between;
+        width: 100%;
+    }
+    .inner {
+        width: 45%;
+        border: 1px solid black;
+        padding: 10px;
+        word-wrap: break-word;
+    }
+  </style>
+</head>
+<body>
+  <script type="module" src="/index.js"></script>
+  <h1>Noir app</h1>
+  <div class="input-area">
+    <input id="age" type="number" placeholder="Enter age" />
+    <button id="submit">Submit Age</button>
+  </div>
+  <div class="outer">
+    <div id="logs" class="inner"><h2>Logs</h2></div>
+    <div id="results" class="inner"><h2>Proof</h2></div>
+  </div>
+</body>
+</html>
+
+
+Source code: examples/browser/index.html#L1-L31
+
+It could be a beautiful UI... Depending on which universe you live in. In any case, we're using some scary CSS to make two boxes that will show cool things on the screen.
+
+As for the JS, real madmen could just console.log everything, but let's say we want to see things happening (the true initial purpose of JS... right?). Here's some boilerplate for that. Just paste it in index.js:
+
+const show = (id, content) => {
+  const container = document.getElementById(id);
+  container.appendChild(document.createTextNode(content));
+  container.appendChild(document.createElement('br'));
+};
+
+document.getElementById('submit').addEventListener('click', async () => {
+  try {
+    // code will go in here
+  }  catch {
+    show('logs', 'Oh 💔');
+  }
+});
+
+info
+At this point in the tutorial, your folder structure should look like this:
+
+.
+├── circuit
+│   ├── Nargo.toml
+│   ├── src
+│   │   └── main.nr
+│   └── target
+│       └── circuit.json
+├── index.html
+├── index.js
+├── package.json
+├── etc...
+
+Some more JS
+We're starting with the good stuff now. We want to execute our circuit to get the witness, and then feed that witness to Barretenberg. Luckily, both packages are quite easy to work with. Let's import them at the top of the file and initialize the WASM modules:
+
+imports
+import { Barretenberg, UltraHonkBackend } from '@aztec/bb.js';
+import { Noir } from '@noir-lang/noir_js';
+import initNoirC from '@noir-lang/noirc_abi';
+import initACVM from '@noir-lang/acvm_js';
+import acvm from '@noir-lang/acvm_js/web/acvm_js_bg.wasm?url';
+import noirc from '@noir-lang/noirc_abi/web/noirc_abi_wasm_bg.wasm?url';
+import circuit from './target/circuit.json';
+// Initialize WASM modules
+await Promise.all([initACVM(fetch(acvm)), initNoirC(fetch(noirc))]);
+
+
+Source code: examples/browser/index.js#L1-L11
+
+And instantiate them inside our try-catch block:
+
+init
+const noir = new Noir(circuit);
+    const barretenbergAPI = await Barretenberg.new();
+    const backend = new UltraHonkBackend(circuit.bytecode, barretenbergAPI);
+
+
+Source code: examples/browser/index.js#L23-L27
+
+Executing and proving
+Now for the app itself. We're capturing whatever is in the input when people press the submit button. Inside our try block, let's just grab that input and get its value. Noir will gladly execute it, and give us a witness:
+
+execute
+const age = document.getElementById('age').value;
+    show('logs', 'Generating witness... ⏳');
+    const { witness } = await noir.execute({ age });
+    show('logs', 'Generated witness... ✅');
+
+
+Source code: examples/browser/index.js#L28-L33
+
+note
+For the remainder of the tutorial, everything will be happening inside the try block
+
+Now we're ready to prove stuff! Let's feed some inputs to our circuit and calculate the proof:
+
+prove
+show('logs', 'Generating proof... ⏳');
+    const proof = await backend.generateProof(witness);
+    show('logs', 'Generated proof... ✅');
+    show('results', proof.proof);
+
+
+Source code: examples/browser/index.js#L34-L39
+
+Our program is technically done . You're probably eager to see stuff happening! To serve this in a convenient way, we can use a bundler like vite by creating a vite.config.js file:
+
+touch vite.config.js
+
+Noir needs to load two WASM modules, but Vite doesn't include them by default in the bundle. We need to add the configuration below to vite.config.js to make it work. We also need to target ESNext since bb.js uses top-level await, which isn't supported in some browsers.
+
+config
+import { defineConfig } from 'vite';
+import { nodePolyfills } from 'vite-plugin-node-polyfills';
+
+export default defineConfig({
+  plugins: [
+    nodePolyfills({
+      // Whether to polyfill specific globals.
+      globals: {
+        Buffer: true,
+        global: true,
+        process: true,
+      },
+      // Whether to polyfill `node:` protocol imports.
+      protocolImports: true,
+    }),
+  ],
+  optimizeDeps: {
+    exclude: ['@aztec/bb.js'],
+  },
+  resolve: {
+    alias: {
+      pino: 'pino/browser.js',
+    },
+  },
+});
+
+
+Source code: examples/browser/vite.config.js#L1-L27
+
+This should be enough for vite. We don't even need to install it, just run:
+
+yarn vite dev
+
+If it doesn't open a browser for you, just visit localhost:5173. You should now see the worst UI ever, with an ugly input.
+
+Noir Webapp UI
+
+Now, our circuit requires a private input fn main(age: u8), and fails if it is less than 18. Let's see if it works. Submit any number above 18 (as long as it fits in 8 bits) and you should get a valid proof. Otherwise the proof won't even generate correctly.
+
+By the way, if you're human, you shouldn't be able to understand anything on the "proof" box. That's OK. We like you, human ❤️.
+
+Verifying
+Time to celebrate, yes! But we shouldn't trust machines so blindly. Let's add these lines to see our proof being verified:
+
+verify
+show('logs', 'Verifying proof... ⌛');
+    const isValid = await backend.verifyProof(proof);
+    show('logs', `Proof is ${isValid ? 'valid' : 'invalid'}... ✅`);
+
+
+Source code: examples/browser/index.js#L41-L45
+
+You have successfully generated a client-side Noir web app!
+
+coded app without math knowledge
+
+Next steps
+At this point, you have a working ZK app that works on the browser. Actually, it works on a mobile phone too!
+
+If you want to continue learning by doing, here are some challenges for you:
+
+Install nargo and write Noir tests
+Change the circuit to accept a public input as the cutoff age. It could be different depending on the purpose, for example!
+Enjoy Noir's Rust-like syntax and write a struct Country that implements a trait MinAge with a method get_min_age. Then, make a struct Person have an u8 as its age and a country of type Country. You can pass a person in JS just like a JSON object person: { age, country: { min_age: 18 }}
+The world is your stage, just have fun with ZK! You can see how noirjs is used in some common frameworks in the awesome-noir repo.

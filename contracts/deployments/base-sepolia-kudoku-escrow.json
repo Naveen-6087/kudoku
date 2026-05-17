@@ -1,0 +1,9 @@
+{
+  "chainId": 84532,
+  "deployer": "0x84b8a57c65c64066E7dED72D1c8fbE1f71a64dD8",
+  "feeRecipient": "0x84b8a57c65c64066E7dED72D1c8fbE1f71a64dD8",
+  "rankingVerifier": "0xa6D7929C09B6753d15524129Ba4cC109978C1176",
+  "settlementVerifier": "0xBF00d12660ED58FEDD063765E78432Ac1b652a76",
+  "escrowAddress": "0xc26ac6ae99f4bf028A440076CBd8560139b1d6A6",
+  "transactionHash": "0xe3c6c3bc6910234a435b03c26f2d0366cb05dc07d78d4c84504529faaf6cd293"
+}

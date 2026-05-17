@@ -1,0 +1,239 @@
+Verifying proofs with Kurier
+info
+All the codebase used in the tutorial can be explored here
+
+In this tutorial, we will be exploring the process of verifying proofs on zkVerify using Kurier. Kurier is a REST API service built by Horizen Labs which makes the process of verifying proofs on zkVerify very easy and straightforward.
+
+note
+Before starting the tutorial make sure to update your Node JS to the latest version (v24.1.0) You can check your Node JS version with command node -v
+
+Let's create a new project and install axios for our project. Run the following commands:
+
+Create a new directory:
+
+mkdir proof-submission
+
+Navigate to the project directory:
+
+cd proof-submission
+
+Initialize an NPM project:
+
+npm init -y && npm pkg set type=module
+
+Install axios and dotenv:
+
+npm i axios dotenv
+
+Let's create a .env file to store our API_KEY, which will be used later to send proofs for verification using Kurier. Use the following code snippet to fill up your .env file. To use Kurier you need an API Key. Create your own API key by signing up here for mainnet or here for testnet.
+
+API_KEY = "generate your API key"
+
+Create a new file named index.js as the entrypoint for our application. Open index.js in your IDE and start with import neccesary packages :
+
+import axios from "axios";
+import fs from "fs";
+import dotenv from "dotenv";
+dotenv.config();
+
+After this let's initialize our API URL.
+
+For mainnet:
+
+const API_URL = "https://api.kurier.xyz";
+
+For testnet:
+
+const API_URL = "https://api-testnet.kurier.xyz";
+
+API Documentation
+
+Swagger docs are available for both environments and provide detailed information about each endpoint, expected payloads, and responses. Refer to them when integrating or debugging your API calls:
+
+Mainnet: https://api.kurier.xyz/docs
+Testnet: https://api-testnet.kurier.xyz/docs
+We would also need to import the required files we have generated already in previous tutorials, which are proof, verification key and public inputs. Use the following code snippets:
+
+Circom
+Risc Zero
+Ultrahonk
+Ultraplonk
+SP1
+Ezkl
+const proof = fs.readFileSync('../target/zkv_proof.hex', 'utf-8');
+const publicInputs = fs.readFileSync('../target/zkv_pubs.hex', 'utf-8');
+const vkey = fs.readFileSync('../target/zkv_vk.hex', 'utf-8');
+
+info
+Next we will be writing the core logic to send proofs to zkVerify for verification. All the following code snippets should be inserted within async main function.
+
+async function main() {
+  // Required code
+}
+
+main();
+
+Once you have all the requirements imported, we will start by registering our verification key. We can do this by calling a POST endpoint named register-vk on the Kurier API. We will also need to create a params object with all the necessary information about the verification key, which will be sent in the API call. Once we register the verification key, we will store the vkHash in a json file which can be used in subsequent API verification calls.
+
+Circom
+Risc Zero
+Ultrahonk
+Ultraplonk
+SP1
+if(!fs.existsSync("noir-vkey.json")) {
+    // Registering the verification key
+    try {
+        const regParams = {
+            "proofType": "ultrahonk",
+            "vk": vkey.split("\n")[0]
+        }
+        const regResponse = await axios.post(`${API_URL}/register-vk/${process.env.API_KEY}`, regParams);
+        fs.writeFileSync(
+            "noir-vkey.json",
+            JSON.stringify(regResponse.data)
+        );
+    } catch(error) {
+        fs.writeFileSync(
+            "noir-vkey.json",
+            JSON.stringify(error.response.data)
+        );
+    }
+}
+const vk = JSON.parse(fs.readFileSync("noir-vkey.json"));
+
+After registering our verification key, we will start the verification process by calling a POST endpoint named submit-proof. We will also need to create a params object with all the necessary information about the proof and the vkHash we got after registering our verification key, which will be sent in the API call. If you want to aggregate the verified proof(want to verify the proof aggregation on connected chains like Sepolia, Base Sepolia etc) check the code snippets with aggregation.
+
+With Aggregation
+We need to define the chainId where we want to verify our aggregated proof. You can find the chain ID for all the supported networks here
+
+Ultrahonk
+
+const params = {
+    "proofType": "ultrahonk",
+    "vkRegistered": true,
+    "chainId": 11155111,
+    "proofData": {
+        "proof": proof.proof,
+        "publicSignals": proof.pub_inputs,
+        "vk": vk.vkHash || vk.meta.vkHash
+    }
+}
+
+const requestResponse = await axios.post(`${API_URL}/submit-proof/${process.env.API_KEY}`, params)
+console.log(requestResponse.data)
+
+
+After sending the verification request to Kurier, we can fetch the status of our request using the jobId returned in the response of the previous API call. To get the status, we will be making a GET API call to job-status endpoint. We want to wait till our proof is finalized on zkVerify, thus we will run a loop waiting for 5 seconds between multiple API calls.
+
+
+With Aggregation
+if(requestResponse.data.optimisticVerify !== "success"){
+    console.error("Proof verification, check proof artifacts");
+    return;
+}
+
+while(true) {
+const jobStatusResponse = await axios.get(`${API_URL}/job-status/${process.env.API_KEY}/${requestResponse.data.jobId}`);
+if (jobStatusResponse.data.status === "Aggregated") {
+console.log("Job aggregated successfully");
+console.log(jobStatusResponse.data);
+fs.writeFileSync("aggregation.json", JSON.stringify({...jobStatusResponse.data.aggregationDetails, aggregationId: jobStatusResponse.data.aggregationId}))
+break;
+} else {
+console.log("Job status: ", jobStatusResponse.data.status);
+console.log("Waiting for job to aggregated...");
+await new Promise(resolve => setTimeout(resolve, 20000)); // Wait for 5 seconds before checking again
+}
+}
+
+
+
+Next run this script by running node index.js command. You should get a response similar to the following :-
+
+{
+  jobId: '4e77e1c5-4d36-11f0-8eb5-b2e0eb476089',
+  optimisticVerify: 'success'
+}
+Job status:  Submitted
+Waiting for job to aggregated...
+Job status:  AggregationPending
+Waiting for job to aggregated...
+Job aggregated successfully
+{
+  jobId: '4e77e1c5-4d36-11f0-8eb5-b2e0eb476089',
+  status: 'Aggregated',
+  statusId: 6,
+  proofType: 'groth16',
+  chainId: 11155111,
+  createdAt: '2025-06-19T17:53:29.000Z',
+  updatedAt: '2025-06-19T17:54:05.000Z',
+  txHash: '0x1087c19de3d4b6dc5c8b20aec8a640d94ad6862e57634b5cf48defcabea3a92e',
+  blockHash: '0x5c8279c370ac8611e5dc5810fabf6078e1997c0c323fc2b26de74ff420e27c65',
+  aggregationId: 29537,
+  statement: '0xd72c67547100dd6f00c60f05f4bb7cf33f22b077e6a76125e911e091197bd55c',
+  aggregationDetails: {
+    receipt: '0x84c25ba051bc3cc66a74bcf2169befad5f348d0ad7b24efd6c68c70a25783ad2',
+    receiptBlockHash: '0x11802c585a367a02df4b0555d1310ff96fa5490fb6e8da8ebefde3f537ef5cb7',
+    root: '0x84c25ba051bc3cc66a74bcf2169befad5f348d0ad7b24efd6c68c70a25783ad2',
+    leaf: '0xd72c67547100dd6f00c60f05f4bb7cf33f22b077e6a76125e911e091197bd55c',
+    leafIndex: 6,
+    numberOfLeaves: 8,
+    merkleProof: [
+      '0xc714a8b348a529a98fd65c547d7d0819afd3be840fdbad95f04c5ce026424cd4',
+      '0x958bf24c3a974ce5ad51461bdea442de1907d90d237bba2be3aaca3ec609d777',
+      '0x9367529337c04392b71c3174eaaba23fa2c8d8b599b82ec1ec1a420bbf2e2d77'
+    ]
+  }
+}
+
+And you would now have a new file named aggregation.json which will have the aggregation details which can be used later during smart contract verification.
+
+Job Status
+In this example, we demonstrated how to wait for "Finalized" status for our proof verification. There are multiple proof status you can wait for. You can check all the status available following :
+
+Queued - Proof accepted and waiting for processing
+Valid - Proof passed optimistic verification
+Submitted - Proof submitted to blockchain/mempool
+IncludedInBlock - Proof transaction included in a block
+Finalized - Proof transaction finalized on-chain
+Failed - Proof processing failed
+note
+All the status mentioned below, would not be generated if chainId is not provided in the submit proof request
+
+AggregationPending - Proof ready for aggregation
+Aggregated - Proof successfully aggregated and published
+AggregationPublished - Proof aggregation successfully published to zkVerify contract on destination chain
+
+without aggreegation
+const params = {
+    "proofType": "ultrahonk",
+    "vkRegistered": true,
+    "proofData": {
+        "proof": proof.split("\n")[0],
+        "vk": vk.vkHash || vk.meta.vkHash,
+        "publicSignals": publicInputs.split("\n").slice(0,-1)
+    }
+}
+
+const requestResponse = await axios.post(`${API_URL}/submit-proof/${process.env.API_KEY}`, params)
+console.log(requestResponse.data)
+
+After sending the verification request to Kurier, we can fetch the status of our request using the jobId returned in the response of the previous API call. To get the status, we will be making a GET API call to job-status endpoint. We want to wait till our proof is finalized on zkVerify, thus we will run a loop waiting for 5 seconds between multiple API calls.
+
+if (requestResponse.data.optimisticVerify !== "success") {
+    console.error("Proof verification, check proof artifacts");
+    return;
+}
+
+while(true) {
+    const jobStatusResponse = await axios.get(`${API_URL}/job-status/${process.env.API_KEY}/${requestResponse.data.jobId}`);
+    if(jobStatusResponse.data.status === "Finalized"){
+        console.log("Job finalized successfully");
+        console.log(jobStatusResponse.data);
+        break;
+    }else{
+        console.log("Job status: ", jobStatusResponse.data.status);
+        console.log("Waiting for job to finalize...");
+        await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for 5 seconds before checking again
+    }
+}

@@ -1,0 +1,15 @@
+services:
+  kudoku-server:
+    image: ${KUDOKU_SERVER_IMAGE}
+    restart: unless-stopped
+    environment:
+      HOST: 0.0.0.0
+      PORT: 2567
+      MATCH_TICK_RATE: ${MATCH_TICK_RATE:-20}
+      PUBLIC_HTTP_URL: ${PUBLIC_HTTP_URL:-}
+      PUBLIC_WS_URL: ${PUBLIC_WS_URL:-}
+      DSTACK_APP_ID: ${DSTACK_APP_ID:-}
+      DSTACK_GATEWAY_DOMAIN: ${DSTACK_GATEWAY_DOMAIN:-}
+      DSTACK_APP_DOMAIN: ${DSTACK_APP_DOMAIN:-}
+    ports:
+      - "2567:2567"

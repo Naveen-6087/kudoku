@@ -1,0 +1,1640 @@
+
+https://api-testnet.kurier.xyz/docs/json
+Explore
+zkVerify Relayer API
+ 1.14.0 
+OAS 2.0
+https://api-testnet.kurier.xyz/docs/json
+API documentation for zkVerify Relayer Service
+
+Schemes
+
+https
+Status
+
+
+GET
+/api/v1/version
+API and service version
+
+Returns the current API version, service version, environment, and status.
+
+Parameters
+Try it out
+No parameters
+
+Responses
+Response content type
+
+application/json
+Code	Description
+200	
+Service status information
+
+Example Value
+Model
+{
+  "apiVersion": "string",
+  "serviceVersion": "string",
+  "environment": "string",
+  "status": "ok"
+}
+
+GET
+/api/v1/status
+Service health and status
+
+Provides detailed operational data about the zkVerify Relayer API service, including chain synchronization status and supported proof types. This endpoint gives developers real-time confidence in the API's operational status and readiness.
+
+Parameters
+Try it out
+No parameters
+
+Responses
+Response content type
+
+application/json
+Code	Description
+200	
+Service operational status and health information
+
+Example Value
+Model
+{
+  "chainStatus": {
+    "latestBlockNumber": 0,
+    "latestBlockTimestamp": 0
+  },
+  "supportedProofs": [
+    "string"
+  ],
+  "averageOptimisticVerificationTimeSeconds": 0
+}
+Job Status
+
+
+GET
+/api/v1/job-status/{apiKey}/{jobId}
+Get job status
+
+Retrieves the current status and details of a submitted proof job by jobId.
+
+Parameters
+Try it out
+Name	Description
+apiKey *
+string
+(path)
+API key associated with the user
+
+apiKey
+jobId *
+string
+(path)
+UUID v4 of the job
+
+jobId
+Responses
+Response content type
+
+application/json
+Code	Description
+200	
+Job status retrieved successfully
+
+Example Value
+Model
+{
+  "jobId": "string",
+  "status": "string",
+  "proofType": "string",
+  "chainId": 0,
+  "createdAt": "2026-01-21T17:32:32.352Z",
+  "updatedAt": "2026-01-21T17:32:32.352Z",
+  "proofOptions": {},
+  "txHash": "string",
+  "txExplorerUrl": "string",
+  "blockHash": "string",
+  "blockExplorerUrl": "string",
+  "aggregationId": 0,
+  "statement": "string",
+  "transactionDetails": {},
+  "errorDetails": {},
+  "aggregationDetails": {
+    "receipt": "string",
+    "receiptBlockHash": "string",
+    "root": "string",
+    "leaf": "string",
+    "leafIndex": 0,
+    "numberOfLeaves": 0,
+    "merkleProof": [
+      "string"
+    ]
+  },
+  "aggregationPublished": {
+    "destinationChainId": 0,
+    "destinationTxHash": "string",
+    "createdAt": "2026-01-21T17:32:32.352Z"
+  }
+}
+400	
+Invalid jobId format
+
+Example Value
+Model
+{
+  "error": "string"
+}
+404	
+Job not found
+
+Example Value
+Model
+{
+  "error": "string"
+}
+500	
+Failed to fetch job status
+
+Example Value
+Model
+{
+  "error": "string"
+}
+Job Management
+
+
+GET
+/api/v1/jobs
+Get jobs with filtering, pagination, and sorting
+
+Retrieves a paginated list of jobs with optional filtering by userId, label, date range, and status. Results can be sorted by createdAt or updatedAt in ascending or descending order.
+
+Parameters
+Try it out
+Name	Description
+userId
+string
+(query)
+Filter jobs by user ID
+
+userId
+label
+string
+(query)
+Filter jobs by API key label
+
+label
+createdAfter
+string
+(query)
+Filter jobs created after this date (YYYY-MM-DD). This is inclusive, so the job created on the date will be included
+
+createdAfter
+createdBefore
+string
+(query)
+Filter jobs created before this date (YYYY-MM-DD). This is inclusive, so the job created on the date will be included
+
+createdBefore
+page
+string
+(query)
+Page number for pagination (default: 1)
+
+Default value : 1
+
+1
+pageSize
+string
+(query)
+Number of items per page (default: 10, max: 100)
+
+Default value : 10
+
+10
+countOnly
+string
+(query)
+Whether to only count the number of jobs
+
+countOnly
+status
+string
+(query)
+Filter jobs by status. Can be a single status or comma-separated list of statuses. Valid values: Queued, Valid, Submitted, IncludedInBlock, Finalized, AggregationPending, Aggregated, AggregationPublished, Failed
+
+status
+sortBy
+string
+(query)
+Field to sort by. Valid values: createdAt, updatedAt
+
+Default value : createdAt
+
+createdAt
+sortOrder
+string
+(query)
+Sort order. Valid values: asc, desc
+
+Default value : asc
+
+asc
+Responses
+Response content type
+
+application/json
+Code	Description
+200	
+Default Response
+
+Example Value
+Model
+{
+  "jobs": [
+    {
+      "id": "string",
+      "status": 0,
+      "proofType": 0,
+      "chainId": 0,
+      "userId": 0,
+      "apiKeyId": 0,
+      "transactionDetails": "string",
+      "blockHash": "string",
+      "blockExplorerUrl": "string",
+      "txHash": "string",
+      "txExplorerUrl": "string",
+      "aggregationId": 0,
+      "statement": "string",
+      "receiptId": 0,
+      "aggregationStatementId": 0,
+      "leaf": "string",
+      "leafIndex": 0,
+      "merkleProof": "string",
+      "verificationKeyHash": "string",
+      "createdAt": "2026-01-21T17:32:32.363Z",
+      "updatedAt": "2026-01-21T17:32:32.363Z",
+      "errorDetails": "string"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "pageSize": 100,
+    "totalCount": 0,
+    "totalPages": 0
+  },
+  "totalCount": 0
+}
+400	
+Bad Request (invalid query parameters)
+
+Example Value
+Model
+{
+  "error": "string",
+  "message": "string"
+}
+422	
+Unprocessable Entity (validation failed)
+
+Example Value
+Model
+{
+  "code": "string",
+  "error": "string",
+  "message": "string",
+  "details": [
+    {
+      "path": "string",
+      "message": "string"
+    }
+  ]
+}
+500	
+Internal server error
+
+Example Value
+Model
+{
+  "error": "string"
+}
+Proof Submission
+
+
+POST
+/api/v1/submit-proof/{apiKey}
+Submit a ZK proof for verification
+
+Submits a zero-knowledge proof and enqueues it for optimistic and full verification.
+
+Parameters
+Try it out
+Name	Description
+body
+object
+(body)
+Example Value
+Model
+{
+  "proofData": {
+    "proof": {},
+    "publicSignals": {},
+    "vk": {}
+  },
+  "proofType": "groth16",
+  "proofOptions": {},
+  "chainId": 0,
+  "vkRegistered": true,
+  "submissionMode": "attestation"
+}
+Parameter content type
+
+application/json
+apiKey *
+string
+(path)
+API key associated with the user
+
+apiKey
+Responses
+Response content type
+
+application/json
+Code	Description
+200	
+Proof successfully submitted and enqueued
+
+Example Value
+Model
+{
+  "jobId": "string",
+  "optimisticVerify": "success",
+  "error": "string"
+}
+400	
+Bad Request (invalid/missing input)
+
+Example Value
+Model
+{
+  "code": "string",
+  "message": "string",
+  "error": "string"
+}
+422	
+Unprocessable Entity (validation failed)
+
+Example Value
+Model
+{
+  "error": "string",
+  "details": [
+    {
+      "path": "string",
+      "message": "string"
+    }
+  ]
+}
+429	
+Rate limit exceeded
+
+Example Value
+Model
+{
+  "error": "string"
+}
+500	
+Internal server error
+
+Example Value
+Model
+{
+  "error": "string"
+}
+Authentication
+
+
+POST
+/api/v1/auth/signup
+Create a new user account
+
+Creates a new user account with email and password. Password will be hashed before storage. An email verification token will be generated.
+
+Parameters
+Try it out
+Name	Description
+body
+object
+(body)
+Signup request schema. Email and password are required.
+
+Example Value
+Model
+{
+  "email": "user@example.com",
+  "password": "^^^^^^^^",
+  "name": "string",
+  "notes": "string"
+}
+Parameter content type
+
+application/json
+Responses
+Response content type
+
+application/json
+Code	Description
+201	
+Signup response schema
+
+Example Value
+Model
+{
+  "id": 0,
+  "email": "user@example.com",
+  "name": "string",
+  "notes": "string",
+  "message": "string"
+}
+400	
+Bad Request (invalid/missing input)
+
+Example Value
+Model
+{
+  "error": "string"
+}
+409	
+Conflict (email already exists)
+
+Example Value
+Model
+{
+  "error": "string"
+}
+422	
+Unprocessable Entity (validation failed)
+
+Example Value
+Model
+{
+  "error": "string",
+  "details": [
+    "string"
+  ]
+}
+500	
+Internal server error
+
+Example Value
+Model
+{
+  "error": "string"
+}
+
+POST
+/api/v1/auth/logout
+Logout a user
+
+Logs out a user by revoking the refresh token and clearing the auth cookies.
+
+Parameters
+Try it out
+No parameters
+
+Responses
+Response content type
+
+application/json
+Code	Description
+200	
+Successfully logged out
+
+Example Value
+Model
+{
+  "success": true
+}
+500	
+Internal server error
+
+Example Value
+Model
+{
+  "error": "string"
+}
+
+POST
+/api/v1/auth/request-password-reset
+Request password reset
+
+Generates a secure reset token and sends a password reset email to the specified address. The token expires in 15 minutes.
+
+Parameters
+Try it out
+Name	Description
+body
+object
+(body)
+Password reset request schema. Email is required.
+
+Example Value
+Model
+{
+  "email": "user@example.com"
+}
+Parameter content type
+
+application/json
+Responses
+Response content type
+
+application/json
+Code	Description
+200	
+Password reset request response schema
+
+Example Value
+Model
+{
+  "success": true,
+  "message": "string"
+}
+400	
+Bad Request (invalid/missing input)
+
+Example Value
+Model
+{
+  "error": "string"
+}
+422	
+Unprocessable Entity (validation failed)
+
+Example Value
+Model
+{
+  "error": "string",
+  "details": [
+    "string"
+  ]
+}
+500	
+Internal server error
+
+Example Value
+Model
+{
+  "error": "string"
+}
+
+GET
+/api/v1/auth/reset-password/validate
+Validate reset password token
+
+Validates a password reset token without consuming it. Returns different status codes based on token state.
+
+Parameters
+Try it out
+Name	Description
+token *
+string
+(query)
+Password reset token to validate
+
+token
+Responses
+Response content type
+
+application/json
+Code	Description
+200	
+Token is valid and can be used
+
+Example Value
+Model
+{
+  "valid": true,
+  "message": "string"
+}
+400	
+Token does not exist or is invalid/used
+
+Example Value
+Model
+{
+  "valid": true,
+  "message": "string"
+}
+403	
+Token exists but has expired
+
+Example Value
+Model
+{
+  "valid": true,
+  "message": "string",
+  "expired": true
+}
+422	
+Missing or invalid query parameters
+
+Example Value
+Model
+{
+  "error": "string"
+}
+
+POST
+/api/v1/auth/reset-password
+Reset password
+
+Resets user password using a valid reset token. The token must be unexpired and unused.
+
+Parameters
+Try it out
+Name	Description
+body
+object
+(body)
+Reset password request schema. Token and new password are required.
+
+Example Value
+Model
+{
+  "token": "string",
+  "password": "$$$$$$$$"
+}
+Parameter content type
+
+application/json
+Responses
+Response content type
+
+application/json
+Code	Description
+200	
+Reset password response schema
+
+Example Value
+Model
+{
+  "success": true,
+  "message": "string"
+}
+400	
+Bad Request (invalid/missing input)
+
+Example Value
+Model
+{
+  "error": "string"
+}
+401	
+Unauthorized (invalid or expired token)
+
+Example Value
+Model
+{
+  "error": "string"
+}
+422	
+Unprocessable Entity (validation failed)
+
+Example Value
+Model
+{
+  "error": "string",
+  "details": [
+    "string"
+  ]
+}
+500	
+Internal server error
+
+Example Value
+Model
+{
+  "error": "string"
+}
+
+POST
+/api/v1/auth/verify-email
+Verify email address
+
+Verifies user email address using a valid verification token. The token must be unexpired and unused.
+
+Parameters
+Try it out
+Name	Description
+body
+object
+(body)
+Email verification request schema. Token is required.
+
+Example Value
+Model
+{
+  "token": "string"
+}
+Parameter content type
+
+application/json
+Responses
+Response content type
+
+application/json
+Code	Description
+200	
+Email verification response schema
+
+Example Value
+Model
+{
+  "success": true,
+  "message": "string"
+}
+400	
+Bad Request (invalid/missing input)
+
+Example Value
+Model
+{
+  "error": "string"
+}
+401	
+Unauthorized (invalid or expired token)
+
+Example Value
+Model
+{
+  "error": "string"
+}
+422	
+Unprocessable Entity (validation failed)
+
+Example Value
+Model
+{
+  "error": "string",
+  "details": [
+    "string"
+  ]
+}
+500	
+Internal server error
+
+Example Value
+Model
+{
+  "error": "string"
+}
+
+POST
+/api/v1/auth/resend-verification
+Resend verification email if necessary
+
+Send a new verification email and token if the user is unverified.
+
+Parameters
+Try it out
+No parameters
+
+Responses
+Response content type
+
+application/json
+Code	Description
+202	
+Resend verification response schema
+
+Example Value
+Model
+{
+  "success": true,
+  "message": "string"
+}
+400	
+Bad Request (invalid/missing input)
+
+Example Value
+Model
+{
+  "error": "string"
+}
+401	
+Unauthorized (invalid or expired token)
+
+Example Value
+Model
+{
+  "error": "string"
+}
+422	
+Unprocessable Entity (validation failed)
+
+Example Value
+Model
+{
+  "error": "string",
+  "details": [
+    "string"
+  ]
+}
+429	
+Too Many Requests
+
+Example Value
+Model
+{
+  "error": "string"
+}
+500	
+Internal server error
+
+Example Value
+Model
+{
+  "error": "string"
+}
+default
+
+
+POST
+/api/v1/auth/login
+
+Parameters
+Try it out
+No parameters
+
+Responses
+Response content type
+
+application/json
+Code	Description
+200	
+Default Response
+
+
+POST
+/api/v1/auth/refresh-token
+
+Parameters
+Try it out
+No parameters
+
+Responses
+Response content type
+
+application/json
+Code	Description
+200	
+Default Response
+
+
+GET
+/api/v1/auth/verify
+
+Parameters
+Try it out
+No parameters
+
+Responses
+Response content type
+
+application/json
+Code	Description
+200	
+Default Response
+
+
+GET
+/metrics
+
+Parameters
+Try it out
+No parameters
+
+Responses
+Response content type
+
+application/json
+Code	Description
+200	
+Default Response
+
+VK Registration
+
+
+POST
+/api/v1/register-vk/{apiKey}
+Register a Verification Key
+
+Registers a new Verification Key and returns a VkHash for use in future proof submissions.
+
+Parameters
+Try it out
+Name	Description
+body
+object
+(body)
+Example Value
+Model
+{
+  "proofType": "groth16",
+  "proofOptions": {},
+  "vk": {}
+}
+Parameter content type
+
+application/json
+apiKey *
+string
+(path)
+API key associated with the user
+
+apiKey
+Responses
+Response content type
+
+application/json
+Code	Description
+200	
+Successful VK registration
+
+Example Value
+Model
+{
+  "vkHash": "string"
+}
+400	
+Bad Request - Validation or VK already registered
+
+Example Value
+Model
+{
+  "error": "string",
+  "code": "string",
+  "message": "string",
+  "meta": {
+    "additionalProp1": {}
+  }
+}
+
+Getting Started
+We are very excited to announce the launch of the Kurier API into mainnet. First off, we want to extend a big Thank You to all our supporters on testnet that are building zk-apps utilizing Kurier for proof submissions. As we enter the next major phase of our product, we encourage everyone to follow this guide below to port your testnet zk-app to mainnet, and continue sending proofs via Kurier. Both testnet and mainnet are accessible
+
+Important Links
+Kurier API - Testnet: https://api-testnet.kurier.xyz/api/v1
+Create an API key in Testnet: https://testnet.kurier.xyz
+API Documentation: https://api-testnet.kurier.xyz/docs
+Guide: https://docs.zkverify.io/overview/getting-started/kurier
+Next Steps
+For current testnet users that intend to keep their zk-app running on testnet, update the Kurier API testnet URL to: https://testnet.kurier.xyz
+For current testnet users that will be deploying their zk-app to mainnet, make sure you are using the correct mainnet API link indicated above. You will also need to generate a new API key for use in mainnet.
+Mainnet API URL: https://api.kurier.xyz/api/v1
+Note that verification keys registered in testnet will automatically be re-registered in mainnet, so users will not need to re-register the same verification key from testnet.
+New and current users can access both testnet and mainnet environments. Ensure that you are using the correct links and portal to create an API key. You will need to sign up with an email and verify your email address. Once your email address is verified, you can login to your account to generate an API key.
+
+Tutorial (Base Sepolia)
+In this tutorial, we will be exploring the process of verifying proofs directly on Base Sepolia using Kurier.
+
+Currently, only Groth16 proofs over BN254 are supported.
+
+Quick Start (Using curl)
+If you already have a proof ready and just want to test proof verification directly on Base Sepolia, you can make a direct API call to Kurier.
+
+Generate an API key from https://testnet.kurier.xyz and make a request with "submissionMode": "direct" and "chainId": 84532.
+
+Here is an example request. Proof data is specific to your proof and the other fields should be exactly as is.
+
+Example request
+curl -X POST https://api-testnet.kurier.xyz/api/v1/submit-proof/<API_KEY> \
+  -H "Content-Type: application/json" \
+  -d '{
+    "proofType": "groth16",
+    "chainId": 84532,
+    "submissionMode": "direct",
+    "vkRegistered": false,
+    "proofOptions": {
+        "library": "snarkjs",
+        "curve": "bn254"
+    },
+    "proofData": {
+        "proof": {
+        "pi_a": [
+            "4420052269257603964521765970059465190197504296478730051526403555361572750334",
+            "1275015612656268002376231456382141930967106678780413667671436026523998775552",
+            "1"
+        ],
+        "pi_b": [
+            [
+            "11607064673997375736457860321273333509352534161017004314531557355673515813263",
+            "11478505554692336437939643344391005885947215421348486153593338793656052643302"
+            ],
+            [
+            "4958062122395484356380634067656871611831080684969600128423211034631061815968",
+            "1437185897006356101958796197252755759260680332946169822518079236496799612363"
+            ],
+            ["1", "0"]
+        ],
+        "pi_c": [
+            "6626160033948011254336888385645663212035075506864191827227973242651868434509",
+            "17168089924734544011179603229536569417645686449262898339531288153391209142084",
+            "1"
+        ],
+        "protocol": "groth16",
+        "curve": "bn254"
+        },
+        "publicSignals": [
+        "7713112592372404476342535432037683616424591277138491596200192981572885523208"
+        ],
+        "vk": {
+        "protocol": "groth16",
+        "curve": "bn254",
+        "nPublic": 1,
+        "vk_alpha_1": [
+            "20942142906144515267179725381850804438924571621046706976253286503421986433822",
+            "9680977157437563010368034719069627443749947549764693978513212184312665470688",
+            "1"
+        ],
+        "vk_beta_2": [
+            [
+                "16217676226888969690219735041601025084852427983916003102533953692839349242990",
+                "15645679232287031383735064865107576195135312479750571684638136966783512066986"
+            ],
+            [
+                "20044801879021564709130622368889297516821012137991661444872313671032541370254",
+                "14884690486218043533665503570367172626109391511976084010774043567892292157979"
+            ],
+            ["1", "0"]
+        ],
+        "vk_gamma_2": [
+            [
+                "10857046999023057135944570762232829481370756359578518086990519993285655852781",
+                "11559732032986387107991004021392285783925812861821192530917403151452391805634"
+            ],
+            [
+                "8495653923123431417604973247489272438418190587263600148770280649306958101930",
+                "4082367875863433681332203403145435568316851327593401208105741076214120093531"
+            ],
+            ["1", "0"]
+        ],
+        "vk_delta_2": [
+            [
+                "16809957133253474739229029892195099076154555898535369996493508512223781677201",
+                "1024630103201761786084505692366663250469903752194981608555685367041738381534"
+            ],
+            [
+                "165235853046638720951189748368360374041485994280569953339158977860635833273",
+                "8169905769347531841923196983510085592447077089168982572464898358506802524646"
+            ],
+            ["1", "0"]
+        ],
+        "vk_alphabeta_12": [
+            [
+                [
+                    "3519047086240691240444240334405988061824799551425932970208510036292795238167",
+                    "15905769150246362188126455441300829605659570856598816079514359534518991178510"
+                ],
+                [
+                    "662632515789781217967956417508059228403120573889023591221918843188110872316",
+                    "10552102698544138932322313225403879888853967614750442621675453679651192515736"
+                ],
+                [
+                    "9505689337794240180920320112769312826334466736047088892474545429041171397668",
+                    "1836826627152142711173666459859880394571989636815151097424263779994518059590"
+                ]
+            ],
+            [
+                [
+                    "13424414025091686694562074128196866426603406695370277978924565763645214876896",
+                    "17504463026137961072584988823531288324424168190827629371933668475020799676690"
+                ],
+                [
+                    "9796356589604743232733734050731974424277201820318493197881360387655742053307",
+                    "9688490986684084850254262810459336414374171307381267716143947497688574395151"
+                ],
+                [
+                    "2108127091118953822210946419583288095752938830236808750756134529965300882974",
+                    "11654159727836121390777644093536392883585365703915099958414862527652015058986"
+                ]
+            ]
+        ],
+        "IC": [
+            [
+                "16686484712641087123102606730255789399796742399054091813689799051401578414249",
+                "13747114413450601687552288017944577471844727430547243835474268666172976701503",
+                "1"
+            ],
+            [
+                "18003378217964567771165575855982946773816100030558949570583971000071951872063",
+                "6656108805491103221214015713698642249076259443837945518170298630752164818667",
+                "1"
+            ]
+        ]
+    }
+}'
+
+
+Once submitted, you can check the verification status using the /job-status endpoint:
+
+curl -X GET https://api-testnet.kurier.xyz/api/v1/job-status/<jobId>
+
+If you want to integrate this process programmatically or learn how to generate the proof data, continue with the complete tutorial below.
+
+Complete Tutorial: Submitting Proofs via Node.js
+info
+Similar code examples can be explored here.
+
+note
+Before starting the tutorial make sure to update your Node JS to the latest version (v24.1.0) You can check your Node JS version with command node -v
+
+Let's create a new project and install axios for our project. Run the following commands:
+
+Create a new directory:
+
+mkdir proof-submission
+
+Navigate to the project directory:
+
+cd proof-submission
+
+Initialize an NPM project:
+
+npm init -y && npm pkg set type=module
+
+Install axios and dotenv:
+
+npm i axios dotenv
+
+Let's create a .env file to store our API_KEY, which will be used later to send proofs for verification using Kurier. Use the following code snippet to fill up your .env file. To use Kurier you need an API Key. Create your own API key by signing up here for testnet.
+
+API_KEY = "generate your API key"
+
+Create a new file named index.js as the entrypoint for our application. Open index.js in your IDE and start with import necessary packages :
+
+import axios from "axios";
+import fs from "fs";
+import dotenv from "dotenv";
+dotenv.config();
+
+After this let's initialize our API URL.
+
+const API_URL = "https://api-testnet.kurier.xyz/api/v1";
+
+API Documentation
+
+Swagger docs are available and provide detailed information about each endpoint, expected payloads, and responses. Refer to them when integrating or debugging your API calls: https://api-testnet.kurier.xyz/docs
+
+We would also need to import the required files we have generated already in previous tutorials, which are proof, verification key and public inputs.
+
+const proof = JSON.parse(fs.readFileSync("./data/proof.json"));
+const publicInputs = JSON.parse(fs.readFileSync("./data/public.json"));
+const key = JSON.parse(fs.readFileSync("./data/main.groth16.vkey.json"));
+
+info
+Next we will be writing the core logic to send proofs to Kurier for verification. All the following code snippets should be inserted within async main function.
+
+async function main() {
+  // Required code
+}
+
+main();
+
+We will start the verification process by calling a POST endpoint named submit-proof. We will also need to create a params object with all the necessary information about the proof, set the submission mode to "direct", and specify the chainId, which will be sent in the API call. Find the chain IDs for all the supported networks here.
+
+const params = {
+  proofType: "groth16",
+  vkRegistered: false,
+  proofOptions: {
+    library: "snarkjs",
+    curve: "bn128",
+  },
+  chainId: 84532,
+  submissionMode: "direct",
+  proofData: {
+    proof: proof,
+    publicSignals: publicInputs,
+    vk: vk.vkHash || vk.meta.vkHash,
+  },
+};
+
+const requestResponse = await axios.post(
+  `${API_URL}/submit-proof/${process.env.API_KEY}`,
+  params
+);
+console.log(requestResponse.data);
+
+After sending the verification request to Kurier, we can fetch the status of our request using the jobId returned in the response of the previous API call. To get the status, we will be making a GET API call to job-status endpoint. We want to wait until our proof is finalized on Base Sepolia, thus we will run a loop waiting for 5 seconds between multiple API calls.
+
+while (true) {
+  const jobStatusResponse = await axios.get(
+    `${API_URL}/job-status/${process.env.API_KEY}/${requestResponse.data.jobId}`
+  );
+  if (jobStatusResponse.data.status === "Finalized") {
+    console.log("Job finalized successfully");
+    console.log(jobStatusResponse.data);
+    break;
+  } else {
+    console.log("Job status: ", jobStatusResponse.data.status);
+    console.log("Waiting for job to finalize...");
+    await new Promise((resolve) => setTimeout(resolve, 5000)); // Wait for 5 seconds before checking again
+  }
+}
+
+
+Next run this script by running node index.js command. You should get a response similar to the following:
+
+{
+  jobId: '6d79265c-bfd9-11f0-b4be-a621194d52f0'
+}
+Job status:  Submitted
+Waiting for job to finalize...
+Job status:  IncludedInBlock
+Waiting for job to finalize...
+Job status:  IncludedInBlock
+Waiting for job to finalize...
+Job finalized successfully
+{
+    "jobId": "6d79265c-bfd9-11f0-b4be-a621194d52f0",
+    "status": "Finalized",
+    "statusId": 4,
+    "proofType": "groth16",
+    "chainId": 84532,
+    "createdAt": "2025-11-12T15:08:21.000Z",
+    "updatedAt": "2025-11-12T15:08:46.000Z",
+    "proofOptions": {},
+    "txHash": "0xa215807ab9b38564970ca62b26a6751f97b1904907d0cf457b4c05250a81933b",
+    "txExplorerUrl": "https://sepolia.basescan.org/tx/0xa215807ab9b38564970ca62b26a6751f97b1904907d0cf457b4c05250a81933b",
+    "blockHash": "0x7aae663503d45d1ad401f06c7bcb9b4e95e70f81e88fd120efe3d089394a6c58",
+    "blockExplorerUrl": "https://sepolia.basescan.org/block/0x7aae663503d45d1ad401f06c7bcb9b4e95e70f81e88fd120efe3d089394a6c58"
+}
+
+
+Next Steps
+Learn how to generate Groth16 proofs here.
+Explore other submission modes and supported networks here.
+Review API responses and parameters in the Swagger documentation.
+Resources
+Submit feedback or an issue: Kurier API: Feedback
+
+Submit a new feature request: Kurier API: New Feature Requests
+
+Tutorial (zkVerify/Attestation)
+info
+All the codebase used in the tutorial can be explored here
+
+In this tutorial, we will be exploring the process of verifying proofs using Kurier.
+
+note
+Before starting the tutorial make sure to update your Node JS to the latest version (v24.1.0) You can check your Node JS version with command node -v
+
+Let's create a new project and install axios for our project. Run the following commands:
+
+Create a new directory:
+
+mkdir proof-submission
+
+Navigate to the project directory:
+
+cd proof-submission
+
+Initialize an NPM project:
+
+npm init -y && npm pkg set type=module
+
+Install axios and dotenv:
+
+npm i axios dotenv
+
+Let's create a .env file to store our API_KEY, which will be used later to send proofs for verification using Kurier. Use the following code snippet to fill up your .env file. To use Kurier you need an API Key. Create your own API key by signing up here for testnet.
+
+API_KEY = "generate your API key"
+
+Create a new file named index.js as the entrypoint for our application. Open index.js in your IDE and start with import necessary packages :
+
+import axios from "axios";
+import fs from "fs";
+import dotenv from "dotenv";
+dotenv.config();
+
+After this let's initialize our API URL.
+
+For testnet:
+
+const API_URL = "https://api-testnet.kurier.xyz/api/v1";
+
+API Documentation
+
+Swagger docs are available for both environments and provide detailed information about each endpoint, expected payloads, and responses. Refer to them when integrating or debugging your API calls: https://api-testnet.kurier.xyz/docs
+
+We would also need to import the required files we have generated already in previous tutorials, which are proof, verification key and public inputs. Use the following code snippets:
+
+Circom
+Risc Zero
+Ultrahonk
+Ultraplonk
+SP1
+const proof = fs.readFileSync('../target/zkv_proof.hex', 'utf-8');
+const publicInputs = fs.readFileSync('../target/zkv_pubs.hex', 'utf-8');
+const vkey = fs.readFileSync('../target/zkv_vk.hex', 'utf-8');
+
+info
+Next we will be writing the core logic to send proofs to zkVerify for verification. All the following code snippets should be inserted within async main function.
+
+async function main() {
+  // Required code
+}
+
+main();
+
+Once you have all the requirements imported, we will start by registering our verification key. We can do this by calling a POST endpoint named register-vk on Kurier. We will also need to create a params object with all the necessary information about the verification key, which will be sent in the API call. Once we register the verification key, we will store the vkHash in a json file which can be used in subsequent API verification calls..
+
+Circom
+Risc Zero
+Ultrahonk
+Ultraplonk
+SP1
+if(!fs.existsSync("noir-vkey.json")) {
+    // Registering the verification key
+    try {
+        const regParams = {
+            "proofType": "ultrahonk",
+            "vk": vkey.split("\n")[0]
+        }
+        const regResponse = await axios.post(`${API_URL}/register-vk/${process.env.API_KEY}`, regParams);
+        fs.writeFileSync(
+            "noir-vkey.json",
+            JSON.stringify(regResponse.data)
+        );
+    } catch(error) {
+        fs.writeFileSync(
+            "noir-vkey.json",
+            JSON.stringify(error.response.data)
+        );
+    }
+}
+const vk = JSON.parse(fs.readFileSync("noir-vkey.json"));
+
+After registering our verification key, we will start the verification process by calling a POST endpoint named submit-proof. We will also need to create a params object with all the necessary information about the proof and the vkHash we got after registering our verification key, which will be sent in the API call. If you want to aggregate the verified proof (want to verify the proof aggregation on connected chains like Sepolia, Base Sepolia, etc.) check the code snippets with aggregation.
+
+Without Aggregation
+With Aggregation
+We need to define the chainId where we want to verify our aggregated proof. You can find the chain ID for all the supported networks here
+
+Circom
+Risc Zero
+Ultrahonk
+Ultraplonk
+SP1
+const params = {
+    "proofType": "ultrahonk",
+    "vkRegistered": true,
+    "chainId": 11155111,
+    "proofData": {
+        "proof": proof.proof,
+        "publicSignals": proof.pub_inputs,
+        "vk": vk.vkHash || vk.meta.vkHash
+    }
+}
+
+const requestResponse = await axios.post(`${API_URL}/submit-proof/${process.env.API_KEY}`, params)
+console.log(requestResponse.data)
+
+
+After sending the verification request to Kurier, we can fetch the status of our request using the jobId returned in the response of the previous API call. To get the status, we will be making a GET API call to job-status endpoint. We want to wait till our proof is finalized on zkVerify, thus we will run a loop waiting for 5 seconds between multiple API calls.
+
+Without Aggregation
+With Aggregation
+if(requestResponse.data.optimisticVerify !== "success"){
+    console.error("Proof verification, check proof artifacts");
+    return;
+}
+
+while(true) {
+const jobStatusResponse = await axios.get(`${API_URL}/job-status/${process.env.API_KEY}/${requestResponse.data.jobId}`);
+if (jobStatusResponse.data.status === "Aggregated") {
+console.log("Job aggregated successfully");
+console.log(jobStatusResponse.data);
+fs.writeFileSync("aggregation.json", JSON.stringify({...jobStatusResponse.data.aggregationDetails, aggregationId: jobStatusResponse.data.aggregationId}))
+break;
+} else {
+console.log("Job status: ", jobStatusResponse.data.status);
+console.log("Waiting for job to aggregated...");
+await new Promise(resolve => setTimeout(resolve, 20000)); // Wait for 5 seconds before checking again
+}
+}
+
+
+Next run this script by running node index.js command. You should get a response similar to the following:
+
+{
+  jobId: '4e77e1c5-4d36-11f0-8eb5-b2e0eb476089',
+  optimisticVerify: 'success'
+}
+Job status:  Submitted
+Waiting for job to aggregated...
+Job status:  AggregationPending
+Waiting for job to aggregated...
+Job aggregated successfully
+{
+  jobId: '4e77e1c5-4d36-11f0-8eb5-b2e0eb476089',
+  status: 'Aggregated',
+  statusId: 6,
+  proofType: 'groth16',
+  chainId: 11155111,
+  createdAt: '2025-06-19T17:53:29.000Z',
+  updatedAt: '2025-06-19T17:54:05.000Z',
+  txHash: '0x1087c19de3d4b6dc5c8b20aec8a640d94ad6862e57634b5cf48defcabea3a92e',
+  blockHash: '0x5c8279c370ac8611e5dc5810fabf6078e1997c0c323fc2b26de74ff420e27c65',
+  aggregationId: 29537,
+  statement: '0xd72c67547100dd6f00c60f05f4bb7cf33f22b077e6a76125e911e091197bd55c',
+  aggregationDetails: {
+    receipt: '0x84c25ba051bc3cc66a74bcf2169befad5f348d0ad7b24efd6c68c70a25783ad2',
+    receiptBlockHash: '0x11802c585a367a02df4b0555d1310ff96fa5490fb6e8da8ebefde3f537ef5cb7',
+    root: '0x84c25ba051bc3cc66a74bcf2169befad5f348d0ad7b24efd6c68c70a25783ad2',
+    leaf: '0xd72c67547100dd6f00c60f05f4bb7cf33f22b077e6a76125e911e091197bd55c',
+    leafIndex: 6,
+    numberOfLeaves: 8,
+    merkleProof: [
+      '0xc714a8b348a529a98fd65c547d7d0819afd3be840fdbad95f04c5ce026424cd4',
+      '0x958bf24c3a974ce5ad51461bdea442de1907d90d237bba2be3aaca3ec609d777',
+      '0x9367529337c04392b71c3174eaaba23fa2c8d8b599b82ec1ec1a420bbf2e2d77'
+    ]
+  }
+}
+
+And you would now have a new file named aggregation.json which will have the aggregation details which can be used later during smart contract verification.
+
+In this example, we demonstrated how to wait for "Finalized" status for our proof verification. There are multiple proof status you can wait for. You can check all the available statuses here.
+
+Resources
+Submit feedback or an issue: Kurier API: Feedback
+
+Submit a new feature request: Kurier API: New Feature Requests
+
+Generate proofs with Pipelined API
+Overview
+Generating a Zero-Knowledge Proof (ZKP) is typically a multi-step cryptographic process where computational problems are translated into a set of verifiable mathematical statements.
+The specifics vary depending on the type of proof (e.g. zk-SNARKs or zk-STARKs) and ZKP generation can involve the following:
+
+Define the statement or the claim you want to prove; and design a circuit program that represents the computation as a series of simple arithmetic equations. The programs are typically written in specialized languages like Circom or Noir
+Compile the circuit
+Run the trusted set up to generate the public proving key and verification key
+Compute the witness and generate the proof using the full set of public inputs, private witness values and proof key.
+The final step is for the verifier to check the proof and the output is a simple True or False
+How Pipelined API works
+Our team is currently working on a product called “Pipelined API” where users can directly make an API call on the JS frontend and generate the zero knowledge proof. This reduces the complexity of the steps above and allows users to seamlessly generate the zero knowledge proof without the backend setup and orchestration that’s required in step 4.
+
+We intend for this to simplify onboarding for developers familiar with Typescript, Javascript, Next.js framework, but not yet comfortable with Rust and backend systems. Currently, our scope covers SP1 proof type and will expand on others later. All inputs passed from both proof types are mostly public and should minimize privacy concerns. Here's an outline of the steps a developer would take:
+
+Define the statement and design a circuit program
+Compile the circuit
+Run the trusted set up
+Integrate with Pipelined API, send the program to prove + inputs
+Through Pipelined API, we connect with multiple prover networks and provide the best proving quote (taking into account latency and costs). Users won't need to run a backend to access these networks (diagram below) and we will also directly connect with ZKVerify for proof verification through the relayer.
+A flowchart diagram showing how proving and verifying tasks are handled through a pipelined API.
+On the left, there are two boxes labeled “Sp1 project” and “R0 project.” Both connect via an arrow labeled prove_and_verify() to a central box labeled “Pipelined API.”
+From this central box, arrows branch out to four boxes: “Local Proving,” “Sp1 Prover Network,” “Boundless,” and “Other Proving Markets.”
+Each of these then connects to a final box labeled “zkVerify (through relayer).”
+At the bottom, a caption reads: “User just makes a single API call from their zkVM project, all proving and verifying tasks are handled by our backend.&quot;
+
+Next Steps
+The product is a work in progress, but we are open for the community to try out! Please indicate your interest via this form and we will send you further instructions on how to integrate with the Pipelined API.
+
+Job Statuses
+Status	Description
+Failed	Proof processing failed.
+Queued	Proof accepted and waiting for processing.
+Valid	Proof passed optimistic verification.
+Submitted	Proof submitted to blockchain/mempool.
+IncludedInBlock	Proof transaction included in a block.
+Finalized	Proof transaction finalized on-chain.
+AggregationPending	Proof ready for aggregation. Only supported when chain ID is provided.
+Aggregated	Proof successfully aggregated and published. Only supported when chain ID is provided.
+
+Verifiable Random Hash
+Kurier exposes a verifiable pseudo-random hash endpoint on testnet. Each request returns:
+
+A random hash (hash)
+A Groth16 proof (proof) that the hash was computed correctly from public inputs
+A job id (jobId) you can use to track verification status
+Endpoint
+POST https://api-testnet.kurier.xyz/api/v1/random-hash/<API_KEY>
+
+Authentication is done via the <API_KEY> path parameter.
+Request body: empty
+Example:
+
+curl -X POST "https://api-testnet.kurier.xyz/api/v1/random-hash/<API_KEY>"
+
+Response
+The response has the following shape:
+
+{
+  "jobId": "6d79265c-bfd9-11f0-b4be-a621194d52f0",
+  "hash": "0x2a0f...e9",
+  "optimisticVerify": "success",
+  "proof": {
+    "proofType": "groth16",
+    "vkRegistered": false,
+    "proofOptions": { "library": "snarkjs", "curve": "bn254" },
+    "proofData": {
+      "proof": { "pi_a": [], "pi_b": [], "pi_c": [], "protocol": "groth16", "curve": "bn254" },
+      "publicSignals": ["..."],
+      "vk": { "...": "..." }
+    }
+  }
+}
+
+jobId: A Kurier job UUID you can use with /job-status to track verification state.
+hash: The random output (hex string, 0x...). This is the circuit output R[0].
+optimisticVerify: success if Kurier’s optimistic verifier accepted the proof, otherwise failed.
+proof: The proof bundle (proof + public signals + verification key) needed to verify the computation.
+How the randomness is generated
+Each random hash is derived from public entropy and then proven correct.
+
+Entropy sources (unpredictability)
+Latest zkVerify chain block hash: Kurier fetches the latest block header hash from zkVerify RPC and uses it as the main entropy source.
+Per-request nonce (userNonce): Kurier also mixes in a server-generated nonce derived from the request’s database job id (a UUID created at request time). This is primarily for uniqueness / domain separation (so multiple requests won’t collide even if they land on the same block hash). We don’t rely on it as the primary “entropy beacon”; the main unpredictability is still the chain blockHash.
+How much entropy is used
+The block hash is a 32-byte value. For circuit compatibility, Kurier truncates inputs to 31 bytes = 248 bits when mapping them into the BN254 field.
+The output space is therefore a 248-bit value (returned as hash).
+Note: the proof guarantees correct computation of the output from the public inputs; the unpredictability depends on zkVerify’s block production.
+
+“Pseudo-random” vs “true random” (what users should assume)
+The returned hash is pseudo-random: it is the output of a deterministic function (Poseidon) applied to public inputs (blockHash, userNonce) inside a ZK circuit.
+
+Pseudo-random: looks random and is hard to predict without knowing what the next blockHash will be, but it is still fully determined by the inputs.
+True random: comes from a physical entropy source (e.g., hardware noise) and is not deterministically determined by public inputs.
+In Kurier, the unpredictability comes from the chain’s evolving blockHash; the circuit/proof provides verifiable correctness of how that input was transformed into hash.
+
+Processing: raw entropy → random hash
+Kurier uses a circom circuit which computes:
+
+R[0] = Poseidon(blockHash, userNonce) mod N
+
+Where:
+
+blockHash and userNonce are converted into field elements (truncated to 31 bytes if needed)
+N = 2^248 - 1 (the public modulus / upper bound)
+the returned hash is R[0] formatted as hex (0x...)
+The circuit exposes blockHash, userNonce, and N as public inputs, and returns R[0] in the public signals alongside those inputs.
+
+Because the circuit computes mod N, the output is always in the range [0, N) — meaning N effectively sets the maximum possible output value (exclusive).
+
+The circuit implementation used by Kurier can be found in the zkVerify/randomgen repository.
+
+In Kurier’s implementation, the public signals are interpreted as:
+
+publicSignals[0] = R[0] (the returned hash)
+publicSignals[1] = blockHash
+publicSignals[2] = userNonce
+publicSignals[3] = N
+How to check proof verification
+You have two practical options:
+
+1) Track the verification job status (recommended)
+Use the returned jobId to poll Kurier’s job status endpoint:
+
+curl -X GET "https://api-testnet.kurier.xyz/api/v1/job-status/<API_KEY>/<jobId>"
+
+Look for statuses like Valid, IncludedInBlock, and Finalized (see Job Statuses).
+
+2) Verify the proof locally (snarkjs)
+You can also verify the returned Groth16 proof locally using snarkjs:
+
+import * as snarkjs from "snarkjs";
+
+// resp = JSON.parse(httpResponseBody)
+const { proof, publicSignals, vk } = resp.proof.proofData;
+const ok = await snarkjs.groth16.verify(vk, publicSignals, proof);
+console.log("proof valid:", ok);
+
+Why this is fair / reliable
+Correctness is provable: the returned proof (and included verification key) lets anyone verify that hash was computed as specified from the public inputs.
+Public entropy anchor: the primary entropy comes from a public on-chain value (the latest zkVerify block hash), so all users get randomness derived from the same public beacon at that moment.
+Uniqueness: the per-request nonce (derived from the request’s job UUID) ensures distinct outputs even across rapid repeated requests, including multiple calls against the same blockHash.
+Example: random number in a range from the random hash
+If you need a random integer in 1..n (inclusive), you can treat the returned hash as a large random integer r, then scale it into your range.
+
+This mirrors the classic “scale uniform bytes into a range” approach described on Stack Overflow: Generate random number in given range from random bytes.
+
+JavaScript (BigInt)
+/**
+ * Map a 248-bit hash into [1..n] (inclusive) by scaling.
+ * Returns a BigInt so it works for large n.
+ */
+export function randomIntFromRandomHash(hashHex, n) {
+  const r = BigInt(hashHex); // "0x..."
+  const nn = BigInt(n);
+  const k = 248n;
+  const max = 1n << k; // 2^248
+  return (r * nn) / max + 1n;
+}
+
+If you need strictly unbiased sampling for arbitrary n, use rejection sampling. If a rejection occurs, you’ll need more pseudorandom material (e.g., call the endpoint again, or deterministically expand hash with a hash/KDF + counter).
+
+Note: hash/KDF/PRG expansion does not add entropy — it only stretches the existing hash into more bytes.

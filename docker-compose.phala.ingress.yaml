@@ -1,0 +1,23 @@
+services:
+  dstack-ingress:
+    image: dstacktee/dstack-ingress:20250924@sha256:40429d78060ef3066b5f93676bf3ba7c2e9ac47d4648440febfdda558aed4b32
+    restart: unless-stopped
+    ports:
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+      TARGET_ENDPOINT: ${TARGET_ENDPOINT:-http://kudoku-server:2567}
+      GATEWAY_DOMAIN: _.${DSTACK_GATEWAY_DOMAIN}
+      CERTBOT_EMAIL: ${CERTBOT_EMAIL}
+      SET_CAA: ${SET_CAA:-true}
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:-}
+      LINODE_API_TOKEN: ${LINODE_API_TOKEN:-}
+      NAMECHEAP_USERNAME: ${NAMECHEAP_USERNAME:-}
+      NAMECHEAP_API_KEY: ${NAMECHEAP_API_KEY:-}
+      NAMECHEAP_CLIENT_IP: ${NAMECHEAP_CLIENT_IP:-}
+    volumes:
+      - /var/run/dstack.sock:/var/run/dstack.sock
+      - cert-data:/etc/letsencrypt
+
+volumes:
+  cert-data:

@@ -1,0 +1,20 @@
+{
+  "name": "kudoku",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Real-money multiplayer snake battle royale with standalone frontend/backend folders, TEE authority, and ZK settlement.",
+  "scripts": {
+    "dev": "npm run dev --prefix frontend",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "dev:backend": "npm run dev --prefix backend",
+    "zk:build": "node .\\scripts\\build-zk-artifacts.cjs",
+    "zk:register-vks": "node .\\scripts\\register-zk-vks.cjs",
+    "build": "npm run build --prefix backend && npm run build --prefix frontend",
+    "test": "npm run test --prefix frontend",
+    "typecheck": "npm run typecheck --prefix backend && npm run typecheck --prefix frontend",
+    "lint": "npm run lint --prefix frontend"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

@@ -1,0 +1,2193 @@
+Only this page
+All pages
+Powered by GitBook
+1 of 32
+Untitled
+Getting Started
+Barretenberg (or bb for short) is an optimized elliptic curve library for the bn128 curve, and a PLONK SNARK prover.
+
+Although it is a standalone prover, Barretenberg is designed to be used with Noir. It is highly recommended to start by creating a Noir project with the Noir quickstart guide before this guide!
+
+Installation
+Inspired by rustup, noirup and similar tools, you can use the bbup installation script to quickly install and update Barretenberg's CLI tool:
+
+
+Copy
+curl -L https://raw.githubusercontent.com/AztecProtocol/aztec-packages/refs/heads/next/barretenberg/bbup/install | bash
+bbup
+Following these prompts, you should be able to see the bb binary in $HOME/.bb/bb.
+
+Usage
+Assuming you have a Noir project, you can use bb straight-away to prove by giving it the compiled circuit and the witness (the outputs of nargo execute). Since we want to verify the proof later, we also want to write the verification key to a file. For example:
+
+
+Copy
+bb prove -b ./target/hello_world.json -w ./target/hello_world.gz --write_vk -o target
+This will prove your program and write both a proof and a vk file to the target folder. To verify the proof, you don't need the witness, just the proof and the vk:
+
+
+Copy
+bb verify -p ./target/proof -k ./target/vk
+Congratulations! Using Noir and Barretenberg, your verifier could verify the correctness of a proof, without knowing the private inputs!
+
+Next steps
+As cool as it is, proving and verifying on the same machine is not incredibly useful. You may want to do things like:
+
+Generating programs that verify proofs in immutable, decentralized ledgers like blockchains
+
+Verifying proofs within other proofs
+
+Check out those specific guides in the sidebar or related documentation for deeper workflows.
+
+You may be asking yourself what happened to the public inputs? Barretenberg proofs usually append them to the beginning of the proof. This may or may not be useful, and the next guides will provide you with handy commands to split the proof and the public inputs whenever needed.
+
+Find out how we use cookies and how you can change your settings: https://aztec.network/privacy-policy/
+
+Barretenberg
+Barretenberg is a C++ library that implements various Zero-Knowledge Succinct Non-interactive Arguments of Knowledge (zk-SNARK) proof systems, cryptographic primitives, and supporting infrastructure. It's designed for efficiency, security, and flexibility, making it suitable for a wide range of applications requiring privacy-preserving computations.
+
+Key Features
+Multiple Proof Systems: Supports several zkSNARK implementations including:
+
+UltraPlonk: A legacy version of PLONK
+
+UltraHonk: A newer, more efficient PLONKish proving system
+
+ClientIVC: A proving scheme optimized for Aztec client-side smart contract execution
+
+Recursive Proof Verification: Ability to verify proofs within proofs
+
+Cryptographic Primitives:
+
+Elliptic curve operations (BN254, Grumpkin, Secp256k1)
+
+Hash functions (Blake2s, Blake3s, Keccak/SHA-3)
+
+Digital signatures (Schnorr, ECDSA)
+
+Pedersen commitments
+
+zkSNARK Infrastructure:
+
+Polynomial commitment schemes (KZG, IPA)
+
+Sumcheck protocol with and without zero-knowledge
+
+Circuit building tools
+
+Execution trace management
+
+Advanced Features:
+
+Memory operations (ROM/RAM)
+
+Lookup tables (Plookup)
+
+Efficient multi-scalar multiplication
+
+Relationship with Noir
+Barretenberg serves as the cryptographic backend for Noir, a domain-specific language for creating and verifying zero-knowledge proofs. The integration flow is:
+
+Noir Compilation
+Noir programs are compiled into ACIR (Abstract Circuit Intermediate Representation).
+
+ACIR Processing
+Barretenberg takes the ACIR instructions and converts them into a circuit representation.
+
+Witness Generation
+Based on actual input values, Barretenberg computes a witness for the circuit.
+
+Proof Generation
+Barretenberg creates a zero-knowledge proof that the computation was performed correctly.
+
+Verification
+The proof can be verified using Barretenberg's verification algorithms, including onchain via Solidity verifiers.
+
+This integration allows Noir developers to focus on writing application logic while Barretenberg handles the complex cryptographic operations underneath.
+
+Core Components
+bbup
+A versioning tool allowing to install arbitrary versions of Barretenberg, as well as versions compatible with installed Nargo versions.
+
+bb Command Line Interface
+The bb command line interface is the primary way to interact with Barretenberg directly. It provides commands for operations such as:
+
+Proving and verifying circuits
+
+Generating verification keys
+
+Creating Solidity verifiers for onchain verification
+
+Executing and verifying recursive proofs
+
+bb.js
+bb.js is a TypeScript library that wraps the Barretenberg C++ implementation via WebAssembly (WASM) bindings. It allows developers to use Barretenberg's functionality directly in JavaScript/TypeScript environments, including browsers and Node.js.
+
+Proof Systems
+UltraHonk
+
+UltraHonk is an advanced proof system that offers improvements over the legacy UltraPlonk:
+
+More efficient proving times
+
+Smaller proof sizes
+
+Reduced memory usage
+
+Enhanced recursive proving capabilities
+
+Blockchain Integration
+SNARKs are non-interactive, making them suitable to be verified in smart contracts. This enables applications where private data remains hidden while correctness is verified.
+
+Barretenberg produces Solidity smart contracts meant to be used on several EVM networks, as long as they implement the ecMul, ecAdd, ecPairing, and modexp EVM precompiles. Example target networks include:
+
+Ethereum
+
+Optimism
+
+Arbitrum
+
+Polygon PoS
+
+Scroll
+
+Celo
+
+BSC
+
+And many others
+
+Several teams have been writing Barretenberg verifier implementations for other frameworks, for example Starknet's Garaga.
+
+Onchain Verification
+Verification happens onchain (ensuring trustlessness).
+
+Privacy
+Private data remains hidden while correctness is verified.
+
+Use Cases
+Barretenberg and Noir together enable a wide range of privacy-preserving applications:
+
+Private transactions and token transfers
+
+Anonymous voting systems
+
+Zero-knowledge identity verification
+
+Private credentials and attestations
+
+Confidential smart contracts
+
+Secure multi-party computation
+
+Private order books and marketplaces
+
+Technical Architecture
+Barretenberg is organized into several key modules:
+
+Core Cryptography: Finite field arithmetic, elliptic curve operations
+
+Constraint Systems: Circuit representations and constraint management
+
+Proving Systems: Implementation of various proving schemes
+
+Commitment Schemes: Polynomial commitment methods
+
+DSL (Domain Specific Language): Interfaces with ACIR from Noir
+
+Execution: Witness generation and computation
+
+Verification: Proof verification both native and onchain
+
+Further Resources
+Noir Documentation
+
+Aztec Protocol
+
+Awesome Noir - Collection of resources, tools and examples
+
+Find out how we use cookies and how you can change your settings.
+
+Barretenberg CLI Reference
+Barretenberg — Your favo(u)rite zkSNARK library written in C++.
+Aztec Virtual Machine (AVM): disabled
+AVM Transpiler: enabled
+Starknet Garaga Extensions: disabled
+
+Usage:
+
+Usage
+
+Copy
+bb [OPTIONS] [SUBCOMMAND]
+Available Commands:
+
+check — A debugging tool to quickly check whether a witness satisfies a circuit. The function constructs the execution trace and iterates through it row by row, applying the polynomial relations defining the gate types. For Chonk, we check the VKs in the folding stack.
+
+gates — Construct a circuit from the given bytecode (in particular, expand black box functions) and return the gate count information.
+
+prove — Generate a proof.
+
+write_vk — Write the verification key of a circuit. The circuit is constructed using quickly generated but invalid witnesses (which must be supplied in Barretenberg in order to expand ACIR black box opcodes), and no proof is constructed.
+
+verify — Verify a proof.
+
+write_solidity_verifier — Write a Solidity smart contract suitable for verifying proofs of circuit satisfiability for the circuit with verification key at vk_path. Not all hash types are implemented due to efficiency concerns.
+
+aztec_process — Process Aztec contract artifacts: transpile and generate verification keys for all private functions. If input is a directory (and no output specified), recursively processes all artifacts found in the directory.
+
+msgpack — Msgpack API interface.
+
+Options:
+
+-h, --help — Print this help message and exit
+
+-v, --verbose, --verbose_logging — Output all logs to stderr.
+
+-d, --debug_logging — Output debug logs to stderr.
+
+-c, --crs_path — Path CRS directory. Missing CRS files will be retrieved from the internet.
+
+--version — Print the version string.
+
+Subcommands
+bb check
+A debugging tool to quickly check whether a witness satisfies a circuit. The function constructs the execution trace and iterates through it row by row, applying the polynomial relations defining the gate types. For Chonk, we check the VKs in the folding stack.
+
+Usage:
+
+Usage
+
+Copy
+bb check [OPTIONS]
+Options:
+
+-h, --help — Print this help message and exit
+
+-s, --scheme — The type of proof to be constructed. This can specify a proving system, an accumulation scheme, or a particular type of circuit to be constructed and proven for some implicit scheme. Options: {chonk, avm, ultra_honk}
+Environment: BB_SCHEME
+
+-b, --bytecode_path — Path to ACIR bytecode generated by Noir.
+
+-w, --witness_path — Path to partial witness generated by Noir.
+
+--ivc_inputs_path — For IVC, path to input stack with bytecode and witnesses.
+
+--update_inputs — Update inputs if vk check fails.
+
+bb gates
+Construct a circuit from the given bytecode (in particular, expand black box functions) and return the gate count information.
+
+Usage:
+
+Usage
+
+Copy
+bb gates [OPTIONS]
+Options:
+
+-h, --help — Print this help message and exit
+
+-s, --scheme — The type of proof to be constructed. This can specify a proving system, an accumulation scheme, or a particular type of circuit to be constructed and proven for some implicit scheme. Options: {chonk, avm, ultra_honk}
+Environment: BB_SCHEME
+
+-v, --verbose, --verbose_logging — Output all logs to stderr.
+
+-b, --bytecode_path — Path to ACIR bytecode generated by Noir.
+
+--include_gates_per_opcode — Include gates_per_opcode in the output of the gates command.
+
+--oracle_hash — The hash function used by the prover as random oracle standing in for a verifier's challenge generation. Poseidon2 is to be used for proofs that are intended to be verified inside of a circuit. Keccak is optimized for verification in an Ethereum smart contract, where Keccak has a privileged position due to the existence of an EVM precompile. Starknet is optimized for verification in a Starknet smart contract, which can be generated using the Garaga library. Options: {poseidon2, keccak, starknet}
+
+--ipa_accumulation — Accumulate/Aggregate IPA (Inner Product Argument) claims
+
+bb prove
+Generate a proof.
+
+Usage:
+
+Usage
+
+Copy
+bb prove [OPTIONS]
+Options:
+
+-h, --help — Print this help message and exit
+
+-s, --scheme — The type of proof to be constructed. This can specify a proving system, an accumulation scheme, or a particular type of circuit to be constructed and proven for some implicit scheme. Options: {chonk, avm, ultra_honk}
+Environment: BB_SCHEME
+
+-b, --bytecode_path — Path to ACIR bytecode generated by Noir.
+
+-w, --witness_path — Path to partial witness generated by Noir.
+
+-o, --output_path — Directory to write files or path of file to write, depending on subcommand.
+
+--ivc_inputs_path — For IVC, path to input stack with bytecode and witnesses.
+
+-k, --vk_path — Path to a verification key.
+
+--vk_policy — Policy for handling verification keys during IVC accumulation. 'default' uses the provided VK as-is, 'check' verifies the provided VK matches the computed VK (throws error on mismatch), 'recompute' always ignores the provided VK and treats it as nullptr. Options: {default, check, recompute}
+
+-v, --verbose, --verbose_logging — Output all logs to stderr.
+
+-d, --debug_logging — Output debug logs to stderr.
+
+-c, --crs_path — Path CRS directory. Missing CRS files will be retrieved from the internet.
+
+--oracle_hash — The hash function used by the prover as random oracle standing in for a verifier's challenge generation. Poseidon2 is to be used for proofs that are intended to be verified inside of a circuit. Keccak is optimized for verification in an Ethereum smart contract, where Keccak has a privileged position due to the existence of an EVM precompile. Starknet is optimized for verification in a Starknet smart contract, which can be generated using the Garaga library. Options: {poseidon2, keccak, starknet}
+
+--write_vk — Write the provided circuit's verification key
+
+--ipa_accumulation — Accumulate/Aggregate IPA (Inner Product Argument) claims
+
+--disable_zk — Use a non-zk version of --scheme. This flag is set to false by default.
+
+--slow_low_memory — Enable low memory mode (can be 2x slower or more).
+
+--print_bench — Pretty print op counts to standard error in a human-readable format.
+
+--bench_out — Path to write the op counts in a json.
+
+--bench_out_hierarchical — Path to write the hierarchical benchmark data (op counts and timings with parent-child relationships) as json.
+
+--storage_budget — Storage budget for FileBackedMemory (e.g. '500m', '2g'). When exceeded, falls back to RAM (requires --slow_low_memory).
+
+--verify — Verify the proof natively, resulting in a boolean output. Useful for testing.
+
+bb write_vk
+Write the verification key of a circuit. The circuit is constructed using quickly generated but invalid witnesses (which must be supplied in Barretenberg in order to expand ACIR black box opcodes), and no proof is constructed.
+
+Usage:
+
+Usage
+
+Copy
+bb write_vk [OPTIONS]
+Options:
+
+-h, --help — Print this help message and exit
+
+-s, --scheme — The type of proof to be constructed. This can specify a proving system, an accumulation scheme, or a particular type of circuit to be constructed and proven for some implicit scheme. Options: {chonk, avm, ultra_honk}
+Environment: BB_SCHEME
+
+-b, --bytecode_path — Path to ACIR bytecode generated by Noir.
+
+-o, --output_path — Directory to write files or path of file to write, depending on subcommand.
+
+--ivc_inputs_path — For IVC, path to input stack with bytecode and witnesses.
+
+-v, --verbose, --verbose_logging — Output all logs to stderr.
+
+-d, --debug_logging — Output debug logs to stderr.
+
+-c, --crs_path — Path CRS directory. Missing CRS files will be retrieved from the internet.
+
+--oracle_hash — The hash function used by the prover as random oracle standing in for a verifier's challenge generation. Poseidon2 is to be used for proofs that are intended to be verified inside of a circuit. Keccak is optimized for verification in an Ethereum smart contract, where Keccak has a privileged position due to the existence of an EVM precompile. Starknet is optimized for verification in a Starknet smart contract, which can be generated using the Garaga library. Options: {poseidon2, keccak, starknet}
+
+--ipa_accumulation — Accumulate/Aggregate IPA (Inner Product Argument) claims
+
+--verifier_type — Is a verification key for use a standalone single circuit verifier (e.g. a SNARK or folding recursive verifier) or is it for an ivc verifier? standalone produces a verification key sufficient for verifying proofs about a single circuit (including the non-encapsulated use case where an IVC scheme is manually constructed via recursive UltraHonk proof verification). standalone_hiding is similar to standalone but is used for the last step where the structured trace is not utilized. ivc produces a verification key for verifying the stack of run though a dedicated ivc verifier class (currently the only option is the Chonk class). Options: {standalone, standalone_hiding, ivc}
+
+--disable_zk — Use a non-zk version of --scheme. This flag is set to false by default.
+
+bb verify
+Verify a proof.
+
+Usage:
+
+Usage
+
+Copy
+bb verify [OPTIONS]
+Options:
+
+-h, --help — Print this help message and exit
+
+-i, --public_inputs_path — Path to public inputs.
+
+-p, --proof_path — Path to a proof.
+
+-k, --vk_path — Path to a verification key.
+
+-v, --verbose, --verbose_logging — Output all logs to stderr.
+
+-d, --debug_logging — Output debug logs to stderr.
+
+-s, --scheme — The type of proof to be constructed. This can specify a proving system, an accumulation scheme, or a particular type of circuit to be constructed and proven for some implicit scheme. Options: {chonk, avm, ultra_honk}
+Environment: BB_SCHEME
+
+-c, --crs_path — Path CRS directory. Missing CRS files will be retrieved from the internet.
+
+--oracle_hash — The hash function used by the prover as random oracle standing in for a verifier's challenge generation. Poseidon2 is to be used for proofs that are intended to be verified inside of a circuit. Keccak is optimized for verification in an Ethereum smart contract, where Keccak has a privileged position due to the existence of an EVM precompile. Starknet is optimized for verification in a Starknet smart contract, which can be generated using the Garaga library. Options: {poseidon2, keccak, starknet}
+
+--disable_zk — Use a non-zk version of --scheme. This flag is set to false by default.
+
+--ipa_accumulation — Accumulate/Aggregate IPA (Inner Product Argument) claims
+
+bb write_solidity_verifier
+Write a Solidity smart contract suitable for verifying proofs of circuit satisfiability for the circuit with verification key at vk_path. Not all hash types are implemented due to efficiency concerns.
+
+Usage:
+
+Usage
+
+Copy
+bb write_solidity_verifier [OPTIONS]
+Options:
+
+-h, --help — Print this help message and exit
+
+-s, --scheme — The type of proof to be constructed. This can specify a proving system, an accumulation scheme, or a particular type of circuit to be constructed and proven for some implicit scheme. Options: {chonk, avm, ultra_honk}
+Environment: BB_SCHEME
+
+-k, --vk_path — Path to a verification key.
+
+-o, --output_path — Directory to write files or path of file to write, depending on subcommand.
+
+-v, --verbose, --verbose_logging — Output all logs to stderr.
+
+--disable_zk — Use a non-zk version of --scheme. This flag is set to false by default.
+
+-c, --crs_path — Path CRS directory. Missing CRS files will be retrieved from the internet.
+
+--optimized — Use the optimized Solidity verifier.
+
+bb aztec_process
+Process Aztec contract artifacts: transpile and generate verification keys for all private functions. If input is a directory (and no output specified), recursively processes all artifacts found in the directory.
+
+Usage:
+
+Usage
+
+Copy
+bb aztec_process [OPTIONS]
+Options:
+
+-h, --help — Print this help message and exit
+
+-i, --input — Input artifact JSON path or directory to search (optional, defaults to current directory)
+
+-o, --output — Output artifact JSON path (optional, same as input if not specified)
+
+-f, --force — Force regeneration of verification keys
+
+-v, --verbose, --verbose_logging — Output all logs to stderr.
+
+-d, --debug_logging — Output debug logs to stderr.
+
+bb msgpack
+Msgpack API interface.
+
+Usage:
+
+Usage
+
+Copy
+bb msgpack [OPTIONS] [SUBCOMMAND]
+Available Commands:
+
+schema — Output a msgpack schema encoded as JSON to stdout.
+
+curve_constants — Output curve constants as msgpack to stdout.
+
+run — Execute msgpack API commands from stdin or file.
+
+Options:
+
+-h, --help — Print this help message and exit
+
+Subcommands:
+
+bb msgpack schema
+
+Output a msgpack schema encoded as JSON to stdout.
+
+Usage:
+
+Usage
+
+Copy
+bb msgpack schema [OPTIONS]
+Options:
+
+-h, --help — Print this help message and exit
+
+-v, --verbose, --verbose_logging — Output all logs to stderr.
+
+bb msgpack curve_constants
+
+Output curve constants as msgpack to stdout.
+
+Usage:
+
+Usage
+
+Copy
+bb msgpack curve_constants [OPTIONS]
+Options:
+
+-h, --help — Print this help message and exit
+
+-v, --verbose, --verbose_logging — Output all logs to stderr.
+
+bb msgpack run
+
+Execute msgpack API commands from stdin or file.
+
+Usage:
+
+Usage
+
+Copy
+bb msgpack run [OPTIONS]
+Options:
+
+-h, --help — Print this help message and exit
+
+-v, --verbose, --verbose_logging — Output all logs to stderr.
+
+-i, --input — Input file containing msgpack buffers (defaults to stdin)
+
+--max-clients — Maximum concurrent clients for shared memory IPC server (default: 1)
+
+Find out how we use cookies and how you can change your settings: https://aztec.network/privacy-policy/
+
+Barretenberg
+This is unreleased documentation for Barretenberg v4.0.0-nightly.20260120.
+
+For up-to-date documentation, see the latest version (v0.87.0).
+
+Version: v4.0.0-nightly.20260120
+
+Barretenberg is a C++ library that implements various Zero-Knowledge Succinct Non-interactive Arguments of Knowledge (zk-SNARK) proof systems, cryptographic primitives, and supporting infrastructure. It's designed for efficiency, security, and flexibility, making it suitable for a wide range of applications requiring privacy-preserving computations.
+
+Key Features
+Multiple Proof Systems: Supports several zkSNARK implementations including:
+
+UltraHonk: A newer, more efficient PLONKish proving system
+
+Chonk: A proving scheme optimized for Aztec client-side smart contract execution
+
+Recursive Proof Verification: Ability to verify proofs within proofs
+
+Cryptographic Primitives:
+
+Elliptic curve operations (BN254, Grumpkin, Secp256k1)
+
+Hash functions (Blake2s, Blake3s, Keccak/SHA-3)
+
+Digital signatures (Schnorr, ECDSA)
+
+Pedersen commitments
+
+zkSNARK Infrastructure:
+
+Polynomial commitment schemes (KZG, IPA)
+
+Sumcheck protocol with and without zero-knowledge
+
+Circuit building tools
+
+Execution trace management
+
+Advanced Features:
+
+Memory operations (ROM/RAM)
+
+Lookup tables (Plookup)
+
+Efficient multi-scalar multiplication
+
+Relationship with Noir
+Barretenberg serves as the cryptographic backend for Noir, a domain-specific language for creating and verifying zero-knowledge proofs. The relationship works as follows:
+
+Noir Compilation
+Noir programs are compiled into ACIR (Abstract Circuit Intermediate Representation).
+
+ACIR Processing
+Barretenberg takes the ACIR instructions and converts them into a circuit representation.
+
+Witness Generation
+Based on actual input values, Barretenberg computes a witness for the circuit.
+
+Proof Generation
+Barretenberg creates a zero-knowledge proof that the computation was performed correctly.
+
+Verification
+The proof can be verified using Barretenberg's verification algorithms, including onchain via Solidity verifiers.
+
+This integration allows Noir developers to focus on writing application logic while Barretenberg handles the complex cryptographic operations underneath.
+
+Core Components
+bbup
+A versioning tool allowing to install arbitrary versions of Barretenberg, as well as versions compatible with installed Nargo versions.
+
+bb Command Line Interface
+The bb command line interface is the primary way to interact with Barretenberg directly. It provides commands for operations such as:
+
+Proving and verifying circuits
+
+Generating verification keys
+
+Creating Solidity verifiers for onchain verification
+
+Executing and verifying recursive proofs
+
+bb.js
+bb.js is a TypeScript library that wraps the Barretenberg C++ implementation via WebAssembly (WASM) bindings. It allows developers to use Barretenberg's functionality directly in JavaScript/TypeScript environments, including browsers and Node.js.
+
+Proof Systems
+UltraHonk
+
+UltraHonk is an advanced proof system that offers improvements over the legacy UltraPlonk:
+
+More efficient proving times
+
+Reduced memory usage
+
+Enhanced recursive proving capabilities
+
+Blockchain Integration
+As the name implies, SNARKs are non-interactive, making them suitable to be verified in smart contracts. This enables applications where:
+
+Verification happens onchain (ensuring trustlessness)
+
+Private data remains hidden while correctness is verified
+
+Barretenberg produces Solidity smart contracts meant to be used on several EVM networks, as long as they implement the ecMul, ecAdd, ecPairing, and modexp EVM precompiles. For example:
+
+Ethereum
+
+Optimism
+
+Arbitrum
+
+Polygon PoS
+
+Scroll
+
+Celo
+
+BSC
+
+And many others
+
+Several teams have been writing Barretenberg verifier implementations for other frameworks, for example Starknet's Garaga.
+
+Use Cases
+Barretenberg and Noir together enable a wide range of privacy-preserving applications:
+
+Private transactions and token transfers
+
+Anonymous voting systems
+
+Zero-knowledge identity verification
+
+Private credentials and attestations
+
+Confidential smart contracts
+
+Secure multi-party computation
+
+Private order books and marketplaces
+
+Technical Architecture
+Barretenberg is organized into several key modules:
+
+Core Cryptography: Finite field arithmetic, elliptic curve operations
+
+Constraint Systems: Circuit representations and constraint management
+
+Proving Systems: Implementation of various proving schemes
+
+Commitment Schemes: Polynomial commitment methods
+
+DSL (Domain Specific Language): Interfaces with ACIR from Noir
+
+Execution: Witness generation and computation
+
+Verification: Proof verification both native and onchain
+
+Further Resources
+Noir Documentation
+
+Aztec Protocol
+
+Awesome Noir — Collection of resources, tools and examples
+
+Getting Started
+For Ethereum/Solidity verification (uses keccak hash):
+
+Ethereum / evm
+
+Copy
+bb prove -b ./target/hello_world.json -w ./target/hello_world.gz --verifier_target evm -o target
+For recursive verification in Noir circuits (uses poseidon2 hash):
+
+Noir recursive
+
+Copy
+bb prove -b ./target/hello_world.json -w ./target/hello_world.gz --verifier_target noir-recursive -o target
+For Starknet verification via Garaga:
+
+Starknet
+
+Copy
+bb prove -b ./target/hello_world.json -w ./target/hello_world.gz --verifier_target starknet -o target
+Available targets:
+
+evm / evm-no-zk: Ethereum/Solidity verification (keccak)
+
+noir-recursive / noir-recursive-no-zk: Recursive verification in Noir circuits (poseidon2)
+
+noir-rollup / noir-rollup-no-zk: Rollup circuits with IPA accumulation (poseidon2)
+
+starknet / starknet-no-zk: Starknet verification via Garaga
+
+The -no-zk variants disable zero-knowledge, which can be useful when privacy isn't required and you want slightly faster proving.
+
+You may be asking yourself what happened to the public inputs? Barretenberg proofs usually append them to the beginning of the proof. This may or may not be useful, and other guides provide commands to split the proof and the public inputs whenever needed.
+
+bb CLI Reference
+This is unreleased documentation for Barretenberg v4.0.0-nightly.20260120.
+
+For up-to-date documentation, see the latest version (v0.87.0).
+
+Version: v4.0.0-nightly.20260120
+
+This documentation is auto-generated from the bb CLI help output.
+
+Generated: Placeholder - regenerate with ./scripts/generate_bb_cli_docs.sh
+
+Command: bb
+
+Overview
+bb is Barretenberg's command-line interface for proving and verifying circuits. Run bb --help for the full set of available commands and options.
+
+Find out how we use cookies and how you can change your settings.
+
+explainers
+Recursive proofs
+This is unreleased documentation for Barretenberg v4.0.0-nightly.20260120 version.
+
+For up-to-date documentation, see the latest version (v0.87.0).
+
+Version: v4.0.0-nightly.20260120
+
+In programming, we tend to think of recursion as something calling itself. A classic example would be the calculation of the factorial of a number:
+
+
+Copy
+function factorial(n) {
+    if (n === 0 || n === 1) {
+        return 1;
+    } else {
+        return n * factorial(n - 1);
+    }
+}
+In this case, while n is not 1, this function will keep calling itself until it hits the base case, bubbling up the result on the call stack:
+
+
+Copy
+        Is `n` 1?  <---------
+           /\               /
+          /  \         n = n -1
+         /    \           /
+       Yes     No --------
+In Zero-Knowledge, recursion has some similarities.
+
+It is not a Noir function calling itself, but a proof being used as an input to another circuit. In short, you verify one proof inside another proof, returning the proof that both proofs are valid.
+
+This means that, given enough computational resources, you can prove the correctness of any arbitrary number of proofs in a single proof. This could be useful to design state channels (for which a common example would be Bitcoin's Lightning Network), to save on gas costs by settling one proof onchain, or simply to make business logic less dependent on a consensus mechanism.
+
+Examples
+Let us look at some of these examples
+
+Alice and Bob - Guessing game
+Alice and Bob are friends, and they like guessing games. They want to play a guessing game online, but for that, they need a trusted third-party that knows both of their secrets and finishes the game once someone wins.
+
+So, they use zero-knowledge proofs. Alice tries to guess Bob's number, and Bob will generate a ZK proof stating whether she succeeded or failed.
+
+This ZK proof can go on a smart contract, revealing the winner and even giving prizes. However, this means every turn needs to be verified onchain. This incurs some cost and waiting time that may simply make the game too expensive or time-consuming to be worth it.
+
+As a solution, Alice proposes the following: "what if Bob generates his proof, and instead of sending it onchain, I verify it within my own proof before playing my own turn?".
+
+She can then generate a proof that she verified his proof, and so on.
+
+
+Copy
+      Did you fail?  <--------------------------
+           / \                                  /
+          /   \                             n = n -1
+         /     \                              /
+       Yes      No                           /
+        |        |                          /
+        |        |                         /
+        |      You win                    /
+        |                                /
+        |                               /
+Generate proof of that                 /
+        +                             /
+    my own guess     ----------------
+Charlie - Recursive merkle tree
+Charlie is a concerned citizen, and wants to be sure his vote in an election is accounted for. He votes with a ZK proof, but he has no way of knowing that his ZK proof was included in the total vote count!
+
+If the vote collector puts all of the votes into a Merkle tree, everyone can prove the verification of two proofs within one proof, as such:
+
+
+Copy
+                    abcd
+           __________|______________
+          |                         |
+         ab                         cd
+     _____|_____              ______|______
+    |           |            |             |
+  alice        bob        charlie        daniel
+Doing this recursively allows us to arrive on a final proof abcd which if true, verifies the correctness of all the votes.
+
+Daniel - Reusable components
+Daniel has a big circuit and a big headache. A part of his circuit is a setup phase that finishes with some assertions that need to be made. But that section alone takes most of the proving time, and is largely independent of the rest of the circuit.
+
+He might find it more efficient to generate a proof for that setup phase separately, and verify that proof recursively in the actual business logic section of his circuit. This will allow for parallelization of both proofs, which results in a considerable speedup.
+
+What params do I need
+As you can see in the recursion reference, a simple recursive proof requires:
+
+The proof to verify
+
+The Verification Key of the circuit that generated the proof
+
+The public inputs for the proof
+
+Recursive zkSNARK schemes do not necessarily "verify a proof" in the sense that you expect a true or false to be spit out by the verifier. Rather an aggregation object is built over the public inputs.
+
+So, taking the example of Alice and Bob and their guessing game:
+
+Alice makes her guess. Her proof is not recursive: it doesn't verify any proof within it! It's just a standard assert(x != y) circuit
+
+Bob verifies Alice's proof and makes his own guess. In this circuit, he doesn't exactly prove the verification of Alice's proof. Instead, he aggregates his proof to Alice's proof. The actual verification is done when the full proof is verified, for example when using nargo verify or through the verifier smart contract.
+
+We can imagine recursive proofs a relay race. The first runner doesn't have to receive the baton from anyone else, as he/she already starts with it. But when his/her turn is over, the next runner needs to receive it, run a bit more, and pass it along. Even though every runner could theoretically verify the baton mid-run (why not? 🏃🔍), only at the end of the race does the referee verify that the whole race is valid.
+
+Some architecture
+As with everything in computer science, there's no one-size-fits all. But there are some patterns that could help understanding and implementing them. To give three examples:
+
+Adding some logic to a proof verification
+This would be an approach for something like our guessing game, where proofs are sent back and forth and are verified by each opponent. This circuit would be divided in two sections:
+
+A recursive verification section, which would be just the call to std::verify_proof, and that would be skipped on the first move (since there's no proof to verify)
+
+A guessing section, which is basically the logic part where the actual guessing happens
+
+In such a situation, and assuming Alice is first, she would skip the first part and try to guess Bob's number. Bob would then verify her proof on the first section of his run, and try to guess Alice's number on the second part, and so on.
+
+Aggregating proofs
+In some one-way interaction situations, recursion would allow for aggregation of simple proofs that don't need to be immediately verified onchain or elsewhere.
+
+To give a practical example, a barman wouldn't need to verify a "proof-of-age" onchain every time he serves alcohol to a customer. Instead, the architecture would comprise two circuits:
+
+A main, non-recursive circuit with some logic
+
+A recursive circuit meant to verify two proofs in one proof
+
+The customer's proofs would be intermediate, and made on their phones, and the barman could just verify them locally. He would then aggregate them into a final proof sent onchain (or elsewhere) at the end of the day.
+
+Recursively verifying different circuits
+Nothing prevents you from verifying different circuits in a recursive proof, for example:
+
+A circuit1 circuit
+
+A circuit2 circuit
+
+A recursive circuit
+
+In this example, a regulator could verify that taxes were paid for a specific purchase by aggregating both a payer circuit (proving that a purchase was made and taxes were paid), and a receipt circuit (proving that the payment was received)
+
+How fast is it
+At the time of writing, verifying recursive proofs is surprisingly fast. This is because most of the time is spent on generating the verification key that will be used to generate the next proof. So you are able to cache the verification key and reuse it later.
+
+Currently, Noir JS packages don't expose the functionality of loading proving and verification keys, but that feature exists in the underlying bb.js package.
+
+How can I try it
+Learn more about using recursion in Nargo and NoirJS in the how-to guide and see a full example in noir-examples.
+
+advanced
+CHONK - Client-side Highly Optimized ploNK
+CHONK Overview
+Aztec's goal is to enable private verifiable execution of smart contracts. This motivates a proving system design where:
+
+Proofs can be generated with relatively low memory, so that the prover can be run on a phone or browser.
+
+Proofs can efficiently incorporate many layers of recursion — as the claims being proven are of a recursive nature — one contract function calls another which calls another etc.
+
+The second goal indirectly supports the first — efficient recursion goes hand in hand with low memory proving, as statements can be decomposed via recursion into smaller statements that require less prover memory.
+
+We call the proving system CHONK — Client-side Highly Optimized ploNK. As the name suggests, its starting point is the PlonK proving system.
+
+As in the original PlonK system:
+
+It is based on elliptic curves and pairings.
+
+Circuit constraints are expressed via selector polynomials and copy constraints.
+
+Its deviations from PlonK, detailed below, are motivated by the above goals.
+
+Key Deviations from PlonK
+Proving statements about a sequence of circuits
+A statement about contract execution will translate to multiple circuits — representing the different contract functions called during the execution. Between each two of these circuits we need to run an Aztec constructed Kernel circuit to do "bookkeeping" — like making sure the correct arguments are passed from function to function. More details on this approach can be found in the Aztec documentation and the Stackproofs paper.
+
+Replacing univariate quotienting by sumcheck
+This eliminates FFTs and reduces prover time and memory at the expense of proof length. This approach is the main theme of the hyperplonk paper.
+
+Using the Hypernova (HN) folding scheme
+Folding schemes enable cheaper recursion than standard recursive proofs. They work most smoothly with elliptic-curve based proofs systems like CHONK. We specifically work with HyperNova which is convenient and efficient for folding non-uniform PlonK circuits (i.e. not a fixed repeating circuit).
+
+Enhancing HN with "Goblin plonk"
+Though HN (as do other folding schemes) already facilitates efficient recursion, it can still be a bit heavy client-side due to the non-native elliptic curve scalar multiplications performed by the folding verifier. For this reason, we use a "lazy" version of HN where the verifier doesn't perform these operations, but rather simply adds them to a queue of EC operations that need to be performed at the final proving stage. We call this deferral mechanism Goblin Plonk (GP) (see also this paper).
+
+The advantage of GP is that at this final stage we transition to another elliptic curve called Grumpkin where these operations are more efficient. This curve-switch approach was initiated by BCTV, and a good example of it in the modern folding context is CycleFold. GP is arguably simpler than CycleFold where we switch back and forth between the curves at every iteration of the IVC. The approaches are however incomparable, and for example, CycleFold has the advantage of the final IPA verifier size not growing with the number of iterations. (Although this verifier can be run server-side once for all client proofs using the Halo/ BCMS accumulation mechanism.)
+
+Learn More
+For a more colorful video presentation of the above check out this talk.
+
+Tags
+A
+autogenerated1
+
+C
+cli1
+
+R
+reference1
+
+One doc tagged with "reference"
+We value your privacy and we only collect statistics and essential cookies. If you'd like to help us improve our websites, you can allow cookies for tracking page views, time on site, and other analytics.
+
+Find out how we use cookies and how you can change your settings.
+
+bb CLI Reference
+Comprehensive auto-generated reference for the bb (Barretenberg) command-line interface with all commands and options.
+
+One doc tagged with "autogenerated"
+We value your privacy and we only collect statistics and essential cookies. If you'd like to help us improve our websites, you can allow cookies for tracking page views, time on site, and other analytics.
+
+Find out how we use cookies and how you can change your settings.
+
+bb CLI Reference
+Comprehensive auto-generated reference for the bb (Barretenberg) command-line interface with all commands and options.
+
+how_to_guides
+Generate a Solidity Verifier
+Generate the verification key for EVM verification (uses keccak hash, with ZK enabled):
+
+
+Copy
+bb write_vk -b ./target/<noir_artifact_name>.json -o ./target --verifier_target evm
+Generate the Solidity verifier from the vkey:
+
+
+Copy
+bb write_solidity_verifier -k ./target/vk -o ./target/Verifier.sol
+The --verifier_target evm flag configures the verification key for Ethereum/Solidity verification, which uses keccak as the hash function (optimal for EVM due to the keccak precompile). Use --verifier_target evm-no-zk if you don't need zero-knowledge and want slightly faster proving.
+
+Replace <noir_artifact_name> with the name of your Noir project. A Verifier.sol contract will be created in the target folder and can be deployed to any EVM blockchain acting as a verifier smart contract.
+
+Step 2 - Compiling
+Open Remix: https://remix.ethereum.org/ and create a blank workspace.
+
+Create Workspace
+Create a new file in Remix, copy-paste the Verifier.sol content generated earlier.
+
+You may see a browser warning advising you not to trust pasted code. In the context of this guide (offline/local testing), this warning is not relevant and can be ignored.
+
+To compile the verifier, open the compilation tab:
+
+Compilation Tab
+Remix should automatically select a suitable compiler version. If compilation fails with messages like "contract code too big" or "stack too deep":
+
+Contract code too big
+Stack too deep
+Enable optimization in "Advanced Configurations" (the default 200 runs is sufficient) to resolve these issues. After enabling optimization, compilation should succeed:
+
+Compilation success
+Step 3 - Deploying
+With a compiled contract, open Remix's Deploy panel and choose an environment. For this guide, the default Remix VM is used.
+
+Remix will handle contract dependencies; select the Verifier contract and hit "Deploy":
+
+Deploying HonkVerifier
+The deployed contract will appear in the "Deployed Contracts" section.
+
+Step 4 - Verifying
+The verifier contract exposes:
+
+
+Copy
+function verify(bytes calldata _proof, bytes32[] calldata _publicInputs) external view returns (bool)
+First generate a proof using bb. Create or fill a Prover.toml file for your inputs and run:
+
+
+Copy
+nargo check
+Execute the circuit with nargo and then produce the proof using the proving backend:
+
+
+Copy
+nargo execute <witness-name>
+bb prove -b ./target/<circuit-name>.json -w ./target/<witness-name> -o ./target --verifier_target evm
+Make sure the --verifier_target value (evm or evm-no-zk) matches the value used when generating the verification key.
+
+Binary Output Format
+
+Barretenberg outputs proof and public_inputs files in binary format. The binary format is fields-compatible: split into 32-byte chunks where each chunk represents a field element.
+
+Example usage from a zk voting application: https://github.com/noir-lang/noir-examples/blob/33e598c257e2402ea3a6b68dd4c5ad492bce1b0a/foundry-voting/src/zkVote.sol#L35
+
+
+Copy
+function castVote(bytes calldata proof, uint proposalId, uint vote, bytes32 nullifierHash) public returns (bool) {
+  // ...
+  bytes32[] memory publicInputs = new bytes32[](4);
+  publicInputs[0] = merkleRoot;
+  publicInputs[1] = bytes32(proposalId);
+  publicInputs[2] = bytes32(vote);
+  publicInputs[3] = nullifierHash;
+  require(verifier.verify(proof, publicInputs), "Invalid proof");
+Return Values
+
+Noir circuits do not have native return values; return values are implemented as public inputs. If your Noir program returns a Field, the verifier expects that return value included in the public inputs array in the appropriate order.
+
+Example Noir function:
+
+
+Copy
+fn main(
+    // Public inputs
+    pubkey_x: pub Field,
+    pubkey_y: pub Field,
+    // Private inputs
+    priv_key: Field,
+) -> pub Field
+The verify function will expect a public inputs array of length 3: [pubkey_x, pubkey_y, return]. Passing only two inputs will produce an error such as PUBLIC_INPUT_COUNT_INVALID(3, 2).
+
+Structs
+
+Structs are flattened into the public inputs array in a predictable order.
+
+Example Noir structs:
+
+
+Copy
+struct Type1 {
+  val1: Field,
+  val2: Field,
+}
+
+struct Nested {
+  t1: Type1,
+  is_true: bool,
+}
+
+fn main(x: pub Field, nested: pub Nested, y: pub Field) {
+  //...
+}
+Flattened order: [x, nested.t1.val1, nested.t1.val2, nested.is_true, y]
+
+Note on gas / view function
+
+The verify function is a view function — it does not alter blockchain state and thus does not itself cost gas when called locally as a view. However, if verify is invoked inside a state-changing transaction (for example, to gate a state update), the network executes it and that transaction will incur gas costs (calldata, execution, and possibly storage).
+
+Compatibility with different EVM chains
+Barretenberg proof verification requires the following EVM precompiles: ecMul, ecAdd, ecPairing, and modexp. You can deploy and use the verifier contract on any EVM chain that supports these precompiles.
+
+EVM Diff provides a table of which chains support which precompiles: https://www.evmdiff.com/features?feature=precompiles
+
+Chains manually tested to work with the Barretenberg verifier include:
+
+Optimism
+
+Arbitrum
+
+Polygon PoS
+
+Scroll
+
+Celo
+
+BSC
+
+Blast L2
+
+Avalanche C-Chain
+
+Mode
+
+Linea
+
+Moonbeam
+
+Chains manually tested that failed to work:
+
+zkSync ERA
+
+Polygon zkEVM
+
+Contributions/updates (pull requests) are welcome: https://github.com/noir-lang/noir
+
+What's next
+Now that you know how to call a Noir Solidity Verifier from a smart contract (via Remix), you can use it programmatically with frameworks and tooling. See the awesome-noir repository for tools, examples, and libraries: https://github.com/noir-lang/awesome-noir
+
+Recursive Aggregation
+This guide shows you how to prove recursive programs using bb.js. We will be using Noir as the frontend language.
+
+For the sake of clarity, it is assumed that:
+
+You already have a NoirJS app. If you don't, please visit the NoirJS tutorial and the reference.
+
+You are familiar with what are recursive proofs and you have read the recursion explainer
+
+You already built a recursive circuit following the reference, and understand how it works.
+
+It is also assumed that you're not using noir_wasm for compilation, and instead you've used nargo compile to generate the json you're now importing into your project.
+
+Setup
+In a standard recursive app, you're dealing with at least two circuits:
+
+main or inner: a circuit of type assert(x != y), which we want to embed in another circuit recursively.
+
+recursive or outer: a circuit that verifies main.
+
+First, let's import the necessary modules and set up our circuits:
+
+
+Copy
+import { UltraHonkBackend, ProofData, Barretenberg, RawBuffer, deflattenFields } from '@aztec/bb.js';
+import { Noir } from '@noir-lang/noir_js';
+Then we need to load our circuit bytecode and set up the Noir instances:
+
+
+Copy
+// Load main circuit bytecode
+const mainCircuitPath = path.join(__dirname, 'fixtures/main/target/program.json');
+const mainCircuitJson = JSON.parse(readFileSync(mainCircuitPath, 'utf8'));
+const mainBytecode = mainCircuitJson.bytecode;
+
+// Load recursive circuit bytecode
+const recursiveCircuitPath = path.join(__dirname, 'fixtures/recursive/target/recursive.json');
+const recursiveCircuitJson = JSON.parse(readFileSync(recursiveCircuitPath, 'utf8'));
+const recursiveBytecode = recursiveCircuitJson.bytecode;
+
+// Create Noir instances
+mainNoir = new Noir(mainCircuitJson);
+recursiveNoir = new Noir(recursiveCircuitJson);
+Example of an outer circuit that verifies a HONK proof:
+
+
+Copy
+global HONK_VK_SIZE: u32 = 112;
+global HONK_PROOF_SIZE: u32 = 456;
+global HONK_IDENTIFIER: u32 = 1;
+
+fn main(
+    verification_key: [Field; HONK_VK_SIZE],
+    proof: [Field; HONK_PROOF_SIZE],
+    public_inputs: pub [Field; 1],
+) {
+    std::verify_proof_with_type(
+        verification_key,
+        proof,
+        public_inputs,
+        0x0,
+        HONK_IDENTIFIER,
+    );
+}
+Proof Types
+
+Different proof systems can have different proof and VK sizes and types. You need to plan this in advance depending on your proof.
+
+In this case we're using the default HONK proof.
+
+Witness generation
+As with every Noir program, you need to execute it and generate the witness. This is no different from a regular noir.js program, except you want to do it twice:
+
+
+Copy
+// Generate witness for main circuit
+const { witness: mainWitness } = await mainNoir.execute({ x: 1, y: 2 });
+
+// Note: recursiveWitness will be generated later after we have the proof inputs
+// const { witness: recursiveWitness } = await recursiveNoir.execute(recursiveInputs);
+Noir will generate a witness which doesn't mean it is constrained or valid. The proving backend (in this case Barretenberg) is responsible for the generation of the proof.
+
+This is why you should refer this technique as "recursive aggregation" instead of "recursion".
+
+Always keep in mind what is actually happening on your development process, otherwise you'll quickly become confused about what circuit we are actually running and why!
+
+In this case, you can imagine that Alice (running the main circuit) is proving something to Bob (running the recursive circuit), and Bob is verifying her proof within his proof.
+
+With this in mind, it becomes clear that our intermediate proof is the one meant to be verified within another circuit — so it must be Alice's. The only final proof in this theoretical scenario would be the last one, sent onchain.
+
+Proving Backend
+With the witness, we are now moving into actually proving. In this example, we will be using bb.js for generating the proof and the verification key of the inner circuit.
+
+Since we're using Honk proofs, instantiate the UltraHonkBackend as in the browser how-to guide:
+
+
+Copy
+// Setup backend for main circuit (inner circuit)
+mainBackend = new UltraHonkBackend(mainBytecode, { threads: 8 }, { recursive: true });
+
+// Setup backend for recursive circuit (outer circuit)
+recursiveBackend = new UltraHonkBackend(recursiveBytecode, { threads: 8 }, { recursive: false });
+We're setting 8 threads here, but you can use the os.cpus() object in nodejs or navigator.hardwareConcurrency on the browser to make the most out of your CPU cores.
+
+We can now generate the proof and the verification key (VK), for example:
+
+
+Copy
+// Generate proof for main circuit for EVM verification with ZK
+const mainProofData = await mainBackend.generateProof(mainWitness, {
+  verifierTarget: 'evm',
+});
+
+// Generate verification key for main circuit
+const mainVerificationKey = await mainBackend.getVerificationKey({
+  verifierTarget: 'evm',
+});
+One common mistake is to forget who generates the verification key.
+
+In a situation where Alice and Bob are playing a battleships game and Alice is proving to Bob that he shot an aircraft carrier, Bob should generate the verification key himself. If Bob just accepts the proof and the VK from Alice, this means Alice could prove any circuit (e.g. 1 != 2) instead of the actual "proof that Bob sank my ship".
+
+Prepare inputs to feed into the recursive program by converting the VK and proof into fields:
+
+
+Copy
+// Convert proof and VK to fields for recursive circuit
+const barretenbergAPI = await Barretenberg.new({ threads: 1 });
+const vkAsFields = (await barretenbergAPI.acirVkAsFieldsUltraHonk(new RawBuffer(mainVerificationKey))).map(field =>
+  field.toString(),
+);
+
+recursiveInputs = {
+  proof: deflattenFields(mainProofData.proof),
+  public_inputs: [2],
+  verification_key: vkAsFields,
+};
+
+await barretenbergAPI.destroy();
+Recursive proof generation
+Having the proof and the VK in the correct format, generating a recursive proof is the same as generating a normal proof. Use the backend for the recursive circuit to generate it:
+
+
+Copy
+// Generate witness for recursive circuit
+const { witness: recursiveWitness } = await recursiveNoir.execute(recursiveInputs);
+
+// Generate recursive proof
+const recursiveProofData = await recursiveBackend.generateProof(recursiveWitness);
+You can obviously chain this proof into another proof. If you're using recursive proofs, you're probably interested in using them this way.
+
+Example
+You can find a non-exhaustive example of recursive aggregation in the noir-examples repository.
+
+Keep in mind that recursive proof aggregation is an experimental way of using Barretenberg, and you may need to tweak or downgrade versions.
+
+Join the Noir discord for discussions, feedback and questions about anything regarding Noir and BB.
+
+Barretenberg on the browser
+bb.js is the TypeScript/JavaScript prover and verifier library for Barretenberg. It provides both a command-line interface and a programmatic API for generating and verifying zero-knowledge proofs in Node.js and browser environments.
+
+Overview
+bb.js supports multiple proof systems:
+
+UltraHonk: The current recommended proof system with various hash function options
+
+MegaHonk: Alternative Honk implementation
+
+Chonk: For Aztec-specific client-side proving
+
+Installation
+As a Library
+Install bb.js as a dependency in your project:
+
+npm
+
+Copy
+npm install @aztec/bb.js
+yarn
+
+Copy
+yarn add @aztec/bb.js
+Proving and Verifying with UltraHonk
+Using the UltraHonkBackend Class
+The UltraHonkBackend class provides a high-level interface for proof generation and verification. You can import any specific backend (i.e. UltraHonk):
+
+
+Copy
+import { UltraHonkBackend } from '@aztec/bb.js';
+Using a precompiled program and a witness from nargo execute, you can directly import it and initialize the backend:
+
+
+Copy
+// Load circuit bytecode (from Noir compiler output)
+const circuitPath = path.join(__dirname, 'fixtures/main/target/program.json');
+const circuitJson = JSON.parse(readFileSync(circuitPath, 'utf8'));
+const bytecode = circuitJson.bytecode;
+
+// Load witness data
+const witnessPath = path.join(__dirname, 'fixtures/main/target/program.gz');
+const witnessBuffer = readFileSync(witnessPath);
+
+// Initialize backend
+const backend = new UltraHonkBackend(bytecode);
+And just prove it using the witness:
+
+
+Copy
+// Generate proof for EVM verification (uses keccak hash, no ZK)
+const proofData: ProofData = await backend.generateProof(witnessBuffer, {
+  verifierTarget: 'evm-no-zk',
+});
+
+const provingTime = Date.now() - startTime;
+console.log(`Proof generated in ${provingTime}ms`);
+console.log(`Proof size: ${proofData.proof.length} bytes`);
+console.log(`Public inputs: ${proofData.publicInputs.length}`);
+Verification is similarly simple:
+
+
+Copy
+// Verify the proof
+console.log('Verifying proof...');
+const isValid = await backend.verifyProof(proofData, { verifierTarget: 'evm-no-zk' });
+console.log(`Proof verification: ${isValid ? 'SUCCESS' : 'FAILED'}`);
+Verifier Targets
+UltraHonk supports different verifier targets for different verification environments. The verifierTarget option configures the hash function and zero-knowledge settings automatically:
+
+evm / evm-no-zk: For Ethereum/Solidity verification (uses keccak)
+
+noir-recursive / noir-recursive-no-zk: For recursive verification in Noir circuits (uses poseidon2)
+
+noir-rollup / noir-rollup-no-zk: For rollup circuits with IPA accumulation (uses poseidon2)
+
+starknet / starknet-no-zk: For Starknet verification via Garaga
+
+
+Copy
+// Default: recursive verification in Noir (poseidon2, ZK enabled)
+const proof = await backend.generateProof(witnessBuffer);
+expect(proof.proof.length).toBeGreaterThan(0);
+
+// EVM verification without ZK (keccak hash)
+const proofEvm = await backend.generateProof(witnessBuffer, { verifierTarget: 'evm-no-zk' });
+expect(proofEvm.proof.length).toBeGreaterThan(0);
+
+// EVM verification with ZK (keccak hash)
+const proofEvmZk = await backend.generateProof(witnessBuffer, { verifierTarget: 'evm' });
+expect(proofEvmZk.proof.length).toBeGreaterThan(0);
+
+// Recursive verification in Noir (explicit)
+const proofRecursive = await backend.generateProof(witnessBuffer, { verifierTarget: 'noir-recursive' });
+expect(proofRecursive.proof.length).toBeGreaterThan(0);
+Getting Verification Keys (VK)
+
+Copy
+// Get verification key for recursive verification (default)
+const vk = await backend.getVerificationKey();
+
+// For a solidity verifier (EVM target):
+const vkEvm = await backend.getVerificationKey({ verifierTarget: 'evm-no-zk' });
+Getting Solidity Verifier
+The solidity verifier is the VK, but with some logic that allows for non-interactive verification:
+
+
+Copy
+// Needs the EVM target VK (uses keccak hash)
+const solidityContract = await backend.getSolidityVerifier(vkEvm, { verifierTarget: 'evm-no-zk' });
+Using the Low-Level API
+For more control, you can use the Barretenberg API directly:
+
+
+Copy
+const api = await Barretenberg.new({ threads: 1 });
+
+// Blake2s hashing
+const input = Buffer.from('hello world!');
+const hash = await api.blake2s(input);
+
+// Pedersen commitment
+const left = Fr.random();
+const right = Fr.random();
+const commitment = await api.pedersenCommit([left, right], 0);
+
+await api.destroy();
+Browser Environment Considerations
+Multithreading Support
+To enable multithreading in browsers using some frameworks (ex. Next.js), you may need to set COOP and COEP headers:
+
+
+Copy
+// Next.js example configuration
+{
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'Cross-Origin-Embedder-Policy', value: 'require-corp' },
+          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+        ],
+      },
+    ];
+  },
+}
+Performance Optimization
+Thread Configuration
+You can define specific thread counts in case you need the cores for other things in your app:
+
+
+Copy
+// Auto-detect optimal thread count (default)
+const api = await Barretenberg.new();
+
+// Manual thread configuration
+const api = await Barretenberg.new({
+  threads: Math.min(navigator.hardwareConcurrency || 1, 8)
+});
+
+// Single-threaded for compatibility
+const api = await Barretenberg.new({ threads: 1 });
+Memory Management
+It can be useful to manage memory manually, specially if targeting specific memory-constrained environments (ex. Safari):
+
+
+Copy
+// Configure initial and maximum memory
+const api = await Barretenberg.new({
+  threads: 4,
+  memory: {
+    initial: 128 * 1024 * 1024,  // 128MB
+    maximum: 512 * 1024 * 1024   // 512MB
+  }
+});
+For more details, see the original privacy and docs links:
+
+https://aztec.network/privacy-policy/
+
+https://barretenberg.aztec.network/docs/how_to_guides/on-the-browser
+
+This unreleased documentation version: v4.0.0-nightly.20260120 (original source)
+
+explainers
+Recursive proofs
+In programming, we tend to think of recursion as something calling itself. A classic example would be the calculation of the factorial of a number:
+
+factorial.js
+
+Copy
+function factorial(n) {
+    if (n === 0 || n === 1) {
+        return 1;
+    } else {
+        return n * factorial(n - 1);
+    }
+}
+In this case, while n is not 1, this function will keep calling itself until it hits the base case, bubbling up the result on the call stack:
+
+
+Copy
+Is `n` 1?  <---------
+   /\               /
+  /  \         n = n -1
+ /    \           /
+Yes No --------
+
+In Zero-Knowledge, recursion has some similarities.
+
+It is not a Noir function calling itself, but a proof being used as an input to another circuit. In short, you verify one proof inside another proof, returning the proof that both proofs are valid.
+
+This means that, given enough computational resources, you can prove the correctness of any arbitrary number of proofs in a single proof. This could be useful to design state channels (for which a common example would be Bitcoin's Lightning Network), to save on gas costs by settling one proof onchain, or simply to make business logic less dependent on a consensus mechanism.
+
+Examples
+Let us look at some of these examples
+
+Alice and Bob - Guessing game
+Alice and Bob are friends, and they like guessing games. They want to play a guessing game online, but for that, they need a trusted third-party that knows both of their secrets and finishes the game once someone wins.
+
+So, they use zero-knowledge proofs. Alice tries to guess Bob's number, and Bob will generate a ZK proof stating whether she succeeded or failed.
+
+This ZK proof can go on a smart contract, revealing the winner and even giving prizes. However, this means every turn needs to be verified onchain. This incurs some cost and waiting time that may simply make the game too expensive or time-consuming to be worth it.
+
+As a solution, Alice proposes the following: "what if Bob generates his proof, and instead of sending it onchain, I verify it within my own proof before playing my own turn?".
+
+She can then generate a proof that she verified his proof, and so on.
+
+
+Copy
+Did you fail?  <--------------------------
+     / \                                  /
+    /   \                             n = n -1
+   /     \                              /
+ Yes      No                           /
+  |        |                          /
+  |        |                         /
+  |      You win                    /
+  |                                /
+  |                               /
+Generate proof of that / + / my own guess ----------------
+
+Charlie - Recursive merkle tree
+Charlie is a concerned citizen, and wants to be sure his vote in an election is accounted for. He votes with a ZK proof, but he has no way of knowing that his ZK proof was included in the total vote count!
+
+If the vote collector puts all of the votes into a Merkle tree, everyone can prove the verification of two proofs within one proof, as such:
+
+
+Copy
+                abcd
+       __________|______________
+      |                         |
+     ab                         cd
+ _____|_____              ______|______
+|           |            |             |
+alice bob charlie daniel
+
+Doing this recursively allows us to arrive on a final proof abcd which if true, verifies the correctness of all the votes.
+
+Daniel - Reusable components
+Daniel has a big circuit and a big headache. A part of his circuit is a setup phase that finishes with some assertions that need to be made. But that section alone takes most of the proving time, and is largely independent of the rest of the circuit.
+
+He might find it more efficient to generate a proof for that setup phase separately, and verify that proof recursively in the actual business logic section of his circuit. This will allow for parallelization of both proofs, which results in a considerable speedup.
+
+What params do I need
+As you can see in the recursion reference, a simple recursive proof requires:
+
+The proof to verify
+
+The Verification Key of the circuit that generated the proof
+
+The public inputs for the proof
+
+Recursive zkSNARK schemes do not necessarily "verify a proof" in the sense that you expect a true or false to be spit out by the verifier. Rather an aggregation object is built over the public inputs.
+
+So, taking the example of Alice and Bob and their guessing game:
+
+Alice makes her guess. Her proof is not recursive: it doesn't verify any proof within it! It's just a standard assert(x != y) circuit
+
+Bob verifies Alice's proof and makes his own guess. In this circuit, he doesn't exactly prove the verification of Alice's proof. Instead, he aggregates his proof to Alice's proof. The actual verification is done when the full proof is verified, for example when using nargo verify or through the verifier smart contract.
+
+We can imagine recursive proofs a relay race. The first runner doesn't have to receive the baton from anyone else, as he/she already starts with it. But when his/her turn is over, the next runner needs to receive it, run a bit more, and pass it along. Even though every runner could theoretically verify the baton mid-run (why not? 🏃🔍), only at the end of the race does the referee verify that the whole race is valid.
+
+Some architecture
+As with everything in computer science, there's no one-size-fits all. But there are some patterns that could help understanding and implementing them. To give three examples:
+
+Adding some logic to a proof verification
+This would be an approach for something like our guessing game, where proofs are sent back and forth and are verified by each opponent. This circuit would be divided in two sections:
+
+A recursive verification section, which would be just the call to std::verify_proof, and that would be skipped on the first move (since there's no proof to verify)
+
+A guessing section, which is basically the logic part where the actual guessing happens
+
+In such a situation, and assuming Alice is first, she would skip the first part and try to guess Bob's number. Bob would then verify her proof on the first section of his run, and try to guess Alice's number on the second part, and so on.
+
+Aggregating proofs
+In some one-way interaction situations, recursion would allow for aggregation of simple proofs that don't need to be immediately verified onchain or elsewhere.
+
+To give a practical example, a barman wouldn't need to verify a "proof-of-age" onchain every time he serves alcohol to a customer. Instead, the architecture would comprise two circuits:
+
+A main, non-recursive circuit with some logic
+
+A recursive circuit meant to verify two proofs in one proof
+
+The customer's proofs would be intermediate, and made on their phones, and the barman could just verify them locally. He would then aggregate them into a final proof sent onchain (or elsewhere) at the end of the day.
+
+Recursively verifying different circuits
+Nothing prevents you from verifying different circuits in a recursive proof, for example:
+
+A circuit1 circuit
+
+A circuit2 circuit
+
+A recursive circuit
+
+In this example, a regulator could verify that taxes were paid for a specific purchase by aggregating both a payer circuit (proving that a purchase was made and taxes were paid), and a receipt circuit (proving that the payment was received)
+
+How fast is it
+At the time of writing, verifying recursive proofs is surprisingly fast. This is because most of the time is spent on generating the verification key that will be used to generate the next proof. So you are able to cache the verification key and reuse it later.
+
+Currently, Noir JS packages don't expose the functionality of loading proving and verification keys, but that feature exists in the underlying bb.js package.
+
+How can I try it
+Learn more about using recursion in Nargo and NoirJS in the how-to guide and see a full example in noir-examples.
+
+advanced
+CHONK - Client-side Highly Optimized ploNK
+CHONK Overview
+Aztec's goal is to enable private verifiable execution of smart contracts. This motivates a proving system design where:
+
+Proofs can be generated with relatively low memory, so that the prover can be run on a phone or browser.
+
+Proofs can efficiently incorporate many layers of recursion - as the claims being proven are of a recursive nature - one contract function calls another which calls another etc.
+
+The second goal indirectly supports the first - efficient recursion goes hand in hand with low memory proving, as statements can be decomposed via recursion into smaller statements that require less prover memory.
+
+We call the proving system CHONK - Client-side Highly Optimized ploNK. As the name suggests, its starting point is the PlonK proving system.
+
+As in the original PlonK system:
+
+It is based on elliptic curves and pairings.
+
+Circuit constraints are expressed via selector polynomials and copy constraints.
+
+Its deviations from PlonK, detailed below, are motivated by the above goals.
+
+Key Deviations from PlonK
+Proving statements about a sequence of circuits
+A statement about contract execution will translate to multiple circuits - representing the different contract functions called during the execution. Between each two of these circuits we need to run an Aztec constructed Kernel circuit to do "bookkeeping" - like making sure the correct arguments are passed from function to function. More details on this approach can be found in the Aztec documentation and the Stackproofs paper.
+
+Replacing univariate quotienting by sumcheck
+This eliminates FFT's and reduces prover time and memory at the expense of proof length. This approach is the main theme of the hyperplonk paper.
+
+Using the protogalaxy (PG) folding scheme
+Folding schemes enable cheaper recursion than standard recursive proofs. They work most smoothly with elliptic-curve based proofs systems like CHONK. We specifically work with protogalaxy which is convenient and efficient for folding non-uniform PlonK circuits (i.e. not a fixed repeating circuit).
+
+Enhancing PG with "Goblin plonk"
+Though PG (as do other folding schemes) already facilitates efficient recursion, it can still be a bit heavy client-side due to the non-native elliptic curve scalar multiplications performed by the folding verifier. For this reason, we use a "lazy" version of PG where the verifier doesn't perform these operations, but rather simply adds them to a queue of EC operations that need to be performed at the final proving stage. We call this deferral mechanism Goblin Plonk (GP) (see also this paper).
+
+The advantage of GP is that at this final stage we transition to another elliptic curve called Grumpkin where these operations are more efficient. This curve-switch approach was initiated by BCTV, and a good example of it in the modern folding context is CycleFold. GP is arguably simpler than CycleFold where we switch back and forth between the curves at every iteration of the IVC. The approaches are however incomparable, and for example, CycleFold has the advantage of the final IPA verifier size not growing with the number of iterations. (Although this verifier can be run server-side once for all client proofs using the Halo/ BCMS accumulation mechanism.)
+
+Learn More
+For a more colorful video presentation of the above check out this talk.
+
+Tags
+A
+autogenerated1
+
+B
+barretenberg1
+
+C
+cli1
+
+P
+proving1
+
+R
+reference1
+
+One doc tagged with "barretenberg"
+We value your privacy and we only collect statistics and essential cookies. If you'd like to help us improve our websites, you can allow cookies for tracking page views, time on site, and other analytics.
+
+Find out how we use cookies and how you can change your settings.
+
+Options: I accept cookies · I refuse cookies
+
+Barretenberg CLI Reference
+Comprehensive auto-generated reference for the Barretenberg CLI command-line interface with all commands and options.
+
+Barretenberg CLI Reference
+
+One doc tagged with "proving"
+Comprehensive auto-generated reference for the Barretenberg CLI command-line interface with all commands and options.
+
+Find out how we use cookies and how you can change your settings: https://aztec.network/privacy-policy/
+
+how_to_guides
+Generate a Solidity Verifier
+Step 1 - Generate a Solidity contract
+Generate the verification key. You need to pass the --oracle_hash keccak flag when generating vkey and proving to instruct bb to use keccak as the hash function, which is more optimal in Solidity:
+
+
+Copy
+bb write_vk -b ./target/<noir_artifact_name>.json -o ./target --oracle_hash keccak
+Generate the Solidity verifier from the vkey:
+
+
+Copy
+bb write_solidity_verifier -k ./target/vk -o ./target/Verifier.sol
+Replace <noir_artifact_name> with the name of your Noir project. A Verifier.sol contract is now in the target folder and can be deployed to any EVM blockchain acting as a verifier smart contract.
+
+Step 2 - Compiling
+Open Remix at https://remix.ethereum.org/ and create a blank workspace.
+
+Create Workspace
+Create a new file in Remix and copy-paste the content of the generated Verifier.sol.
+
+You'll likely see a warning advising you to not trust pasted code. While it is an important warning, it is irrelevant in the context of this guide and can be ignored. We will not be deploying anywhere near a mainnet.
+
+To compile the verifier, navigate to the compilation tab:
+
+Compilation Tab
+Remix should automatically match a suitable compiler version. You may encounter errors such as the contract being too big to deploy on mainnet or "stack too deep":
+
+Contract code too big
+Stack too deep
+To mitigate this, open "Advanced Configurations" and enable optimization (default 200 runs is fine). Compilation should then succeed:
+
+Compilation success
+Step 3 - Deploying
+After compilation, navigate to the deploy section in Remix and choose an environment. For this guide we'll use the default Remix VM.
+
+Select the Verifier contract and hit "deploy". Remix will manage dependencies and deploy the contract.
+
+Deploying HonkVerifier
+A deployed contract will appear in the "Deployed Contracts" section.
+
+Step 4 - Verifying
+To verify a proof using the Solidity verifier contract, call the verify function:
+
+
+Copy
+function verify(bytes calldata _proof, bytes32[] calldata _publicInputs) external view returns (bool)
+First generate a proof with bb. Create/fill a Prover.toml file for your inputs. Run:
+
+
+Copy
+nargo check
+Execute the circuit with nargo and then use the proving backend to prove:
+
+
+Copy
+nargo execute <witness-name>
+bb prove -b ./target/<circuit-name>.json -w ./target/<witness-name> -o ./target --oracle_hash keccak
+Barretenberg outputs proof and public_inputs files in binary format (fields-compatible: split into 32-byte chunks where each chunk represents a field element). This produces a proof file and a public_inputs file.
+
+Example call pattern (from the zk voting example):
+
+
+Copy
+function castVote(bytes calldata proof, uint proposalId, uint vote, bytes32 nullifierHash) public returns (bool) {
+  // ...
+  bytes32[] memory publicInputs = new bytes32[](4);
+  publicInputs[0] = merkleRoot;
+  publicInputs[1] = bytes32(proposalId);
+  publicInputs[2] = bytes32(vote);
+  publicInputs[3] = nullifierHash;
+  require(verifier.verify(proof, publicInputs), "Invalid proof");
+A circuit doesn't have the concept of a return value. Return values are passed as inputs to the circuit and are checked at the end of the circuit program.
+
+Example Noir program:
+
+
+Copy
+fn main(
+    // Public inputs
+    pubkey_x: pub Field,
+    pubkey_y: pub Field,
+    // Private inputs
+    priv_key: Field,
+) -> pub Field
+The verify function expects the public inputs array to be of length 3 (the two inputs and the return value). Passing only two inputs will result in an error such as PUBLIC_INPUT_COUNT_INVALID(3, 2).
+
+In this case the inputs parameter to verify would be ordered as [pubkey_x, pubkey_y, return].
+
+You can pass structs to the verifier contract. They will be flattened so that the array of inputs is a 1-dimensional array.
+
+Example:
+
+
+Copy
+struct Type1 {
+  val1: Field,
+  val2: Field,
+}
+
+struct Nested {
+  t1: Type1,
+  is_true: bool,
+}
+
+fn main(x: pub Field, nested: pub Nested, y: pub Field) {
+  //...
+}
+Flattened input order: [x, nested.t1.val1, nested.t1.val2, nested.is_true, y]
+
+The verify function is a view function. It does not alter blockchain state, so calling it directly (without state changes) does not cost gas. However, if verification is used within a state-changing transaction, the execution (and calldata) will incur gas costs.
+
+Compatibility with different EVM chains
+Barretenberg proof verification requires the ecMul, ecAdd, ecPairing, and modexp EVM precompiles. Deploy and use the verifier on EVM chains that support these precompiles.
+
+EVM Diff provides a table of precompile support: https://www.evmdiff.com/features?feature=precompiles
+
+Some chains manually tested to work with the Barretenberg verifier include:
+
+Optimism
+
+Arbitrum
+
+Polygon PoS
+
+Scroll
+
+Celo
+
+BSC
+
+Blast L2
+
+Avalanche C-Chain
+
+Mode
+
+Linea
+
+Moonbeam
+
+Chains manually tested that failed to work:
+
+zkSync ERA
+
+Polygon zkEVM
+
+Contributions and compatibility updates are welcome: https://github.com/noir-lang/noir
+
+What's next
+Now that you can call a Noir Solidity Verifier from a smart contract using Remix, you can integrate it into programmatic frameworks. See the awesome-noir repository for tools, examples, boilerplates, and libraries: https://github.com/noir-lang/awesome-noir
+
+One doc tagged with "autogenerated"
+Comprehensive auto-generated reference for the Barretenberg CLI command-line interface with all commands and options.
+
+We value your privacy and only collect statistics and essential cookies. If you'd like to help us improve our websites, you can allow cookies for tracking page views, time on site, and other analytics.
+
+Find out how we use cookies and how you can change your settings.
+
+One doc tagged with "reference"
+Comprehensive auto-generated reference for the Barretenberg CLI command-line interface with all commands and options.
+
+Source: https://barretenberg.aztec.network/docs/bb-cli-reference
+
+One doc tagged with "cli"
+Find out how we use cookies and how you can change your settings.
+
+Barretenberg CLI Reference
+Comprehensive auto-generated reference for the Barretenberg CLI command-line interface with all commands and options.
+
+Barretenberg on the browser
+bb.js is the TypeScript/JavaScript prover and verifier library for Barretenberg. It provides both a command-line interface and a programmatic API for generating and verifying zero-knowledge proofs in Node.js and browser environments.
+
+Overview
+bb.js supports multiple proof systems:
+
+UltraHonk: The current recommended proof system with various hash function options
+
+MegaHonk: Alternative Honk implementation
+
+ClientIVC: For Aztec-specific client-side proving
+
+Installation
+As a Library
+Install bb.js as a dependency in your project:
+
+npm
+
+Copy
+npm install @aztec/bb.js
+yarn
+
+Copy
+yarn add @aztec/bb.js
+Proving and Verifying with UltraHonk
+Using the UltraHonkBackend Class
+The UltraHonkBackend class provides a high-level interface for proof generation and verification. You can import any specific backend (i.e. UltraHonk):
+
+
+Copy
+import { UltraHonkBackend} from '@aztec/bb.js';
+Using a precompiled program and a witness from nargo execute, you can directly import it and initialize the backend:
+
+
+Copy
+// Load circuit bytecode (from Noir compiler output)
+const circuitPath = path.join(__dirname, 'fixtures/main/target/program.json');
+const circuitJson = JSON.parse(readFileSync(circuitPath, 'utf8'));
+const bytecode = circuitJson.bytecode;
+
+// Load witness data
+const witnessPath = path.join(__dirname, 'fixtures/main/target/program.gz');
+const witnessBuffer = readFileSync(witnessPath);
+
+// Initialize backend
+const backend = new UltraHonkBackend(bytecode);
+And just prove it using the witness:
+
+
+Copy
+// Generate proof with Keccak for EVM verification
+const proofData: ProofData = await backend.generateProof(witnessBuffer, {
+  keccak: true
+});
+
+const provingTime = Date.now() - startTime;
+console.log(`Proof generated in ${provingTime}ms`);
+console.log(`Proof size: ${proofData.proof.length} bytes`);
+console.log(`Public inputs: ${proofData.publicInputs.length}`);
+Verification is similarly simple:
+
+
+Copy
+// Verify the proof
+console.log('Verifying proof...');
+const isValid = await backend.verifyProof(proofData, { keccak: true });
+console.log(`Proof verification: ${isValid ? 'SUCCESS' : 'FAILED'}`);
+Working with Different Hash Functions
+UltraHonk supports different hash functions for different target verification environments:
+
+
+Copy
+// Standard UltraHonk (uses Poseidon)
+const proof = await backend.generateProof(witnessBuffer);
+expect(proof.proof).to.have.length.greaterThan(0);
+
+// Keccak variant (for EVM verification)
+const proofKeccak = await backend.generateProof(witnessBuffer, { keccak: true });
+expect(proofKeccak.proof).to.have.length.greaterThan(0);
+
+// ZK variants for recursive proofs
+const proofKeccakZK = await backend.generateProof(witnessBuffer, { keccakZK: true });
+expect(proofKeccakZK.proof).to.have.length.greaterThan(0);
+Getting Verification Keys (VK)
+
+Copy
+// Get verification key
+const vk = await backend.getVerificationKey();
+
+// For a solidity verifier:
+const vkKeccak = await backend.getVerificationKey({ keccak: true });
+Getting Solidity Verifier
+The solidity verifier is the VK, but with some logic that allows for non-interactive verification:
+
+
+Copy
+// Needs the keccak hash variant of the VK
+const solidityContract = await backend.getSolidityVerifier(vkKeccak);
+Using the Low-Level API
+For more control, you can use the Barretenberg API directly:
+
+
+Copy
+const api = await Barretenberg.new({ threads: 1 });
+
+// Blake2s hashing
+const input = Buffer.from('hello world!');
+const hash = await api.blake2s(input);
+
+// Pedersen commitment
+const left = Fr.random();
+const right = Fr.random();
+const commitment = await api.pedersenCommit([left, right], 0);
+
+await api.destroy();
+Browser Environment Considerations
+Multithreading Support
+To enable multithreading in browsers using some frameworks (ex. Next.js), you may need to set COOP and COEP headers:
+
+
+Copy
+// Next.js example configuration
+{
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'Cross-Origin-Embedder-Policy', value: 'require-corp' },
+          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+        ],
+      },
+    ];
+  },
+}
+Performance Optimization
+Thread Configuration
+You can define specific thread counts in case you need the cores for other things in your app:
+
+
+Copy
+// Auto-detect optimal thread count (default)
+const api = await Barretenberg.new();
+
+// Manual thread configuration
+const api = await Barretenberg.new({
+  threads: Math.min(navigator.hardwareConcurrency || 1, 8)
+});
+
+// Single-threaded for compatibility
+const api = await Barretenberg.new({ threads: 1 });
+Memory Management
+It can be useful to manage memory manually, specially if targeting specific memory-constrained environments (ex. Safari):
+
+
+Copy
+// Configure initial and maximum memory
+const api = await Barretenberg.new({
+  threads: 4,
+  memory: {
+    initial: 128 * 1024 * 1024,  // 128MB
+    maximum: 512 * 1024 * 1024   // 512MB
+  }
+});
+Links
+Find out how cookies are used and how you can change settings: https://aztec.network/privacy-policy/
+
+Recursive Aggregation
+This guide shows you how to prove recursive programs using bb.js. We will be using Noir as the frontend language.
+
+Assumptions:
+
+You already have a NoirJS app. If you don't, please visit the NoirJS tutorial (https://noir-lang.org/docs/tutorials/noirjs_app) and the reference (https://noir-lang.org/docs/reference/NoirJS/noir_js).
+
+You are familiar with what recursive proofs are and have read the recursion explainer (https://barretenberg.aztec.network/docs/explainers/recursive_aggregation).
+
+You already built a recursive circuit following the reference (https://noir-lang.org/docs/noir/standard_library/recursion), and understand how it works.
+
+It is also assumed that you're not using noir_wasm for compilation, and instead you've used nargo compile (https://noir-lang.org/docs/reference/nargo_commands#nargo-compile) to generate the json you're now importing into your project.
+
+Setup
+In a standard recursive app, you're dealing with at least two circuits:
+
+main or inner: a circuit of type assert(x != y), which we want to embed in another circuit recursively.
+
+recursive or outer: a circuit that verifies main.
+
+First, import the necessary modules and set up our circuits:
+
+
+Copy
+import { UltraHonkBackend, ProofData, Barretenberg, RawBuffer, deflattenFields } from '@aztec/bb.js';
+import { Noir } from '@noir-lang/noir_js';
+Then load your circuit bytecode and create the Noir instances:
+
+
+Copy
+// Load main circuit bytecode
+const mainCircuitPath = path.join(__dirname, 'fixtures/main/target/program.json');
+const mainCircuitJson = JSON.parse(readFileSync(mainCircuitPath, 'utf8'));
+const mainBytecode = mainCircuitJson.bytecode;
+
+// Load recursive circuit bytecode
+const recursiveCircuitPath = path.join(__dirname, 'fixtures/recursive/target/recursive.json');
+const recursiveCircuitJson = JSON.parse(readFileSync(recursiveCircuitPath, 'utf8'));
+const recursiveBytecode = recursiveCircuitJson.bytecode;
+
+// Create Noir instances
+mainNoir = new Noir(mainCircuitJson);
+recursiveNoir = new Noir(recursiveCircuitJson);
+Example of a possible recursive circuit (verifying a HONK proof):
+
+
+Copy
+global HONK_VK_SIZE: u32 = 112;
+global HONK_PROOF_SIZE: u32 = 507;
+global HONK_IDENTIFIER: u32 = 1;
+
+fn main(
+    verification_key: [Field; HONK_VK_SIZE],
+    proof: [Field; HONK_PROOF_SIZE],
+    public_inputs: pub [Field; 1],
+) {
+    std::verify_proof_with_type(
+        verification_key,
+        proof,
+        public_inputs,
+        0x0,
+        HONK_IDENTIFIER,
+    );
+}
+Note: Different proof systems can have different proof and VK sizes and types. Plan accordingly depending on your proof. This example uses the default HONK proof.
+
+Witness generation
+As with every Noir program, you need to execute it and generate the witness. This is no different from a regular noir.js program, except you want to do it twice:
+
+
+Copy
+// Generate witness for main circuit
+const { witness: mainWitness } = await mainNoir.execute({ x: 1, y: 2 });
+
+// Note: recursiveWitness will be generated later after we have the proof inputs
+// const { witness: recursiveWitness } = await recursiveNoir.execute(recursiveInputs);
+Noir will generate a witness which doesn't mean it is constrained or valid. The proving backend (in this case Barretenberg) is responsible for the generation of the proof.
+
+This is why you should refer to this technique as "recursive aggregation" instead of "recursion".
+
+Always keep in mind what is actually happening in your development process, otherwise you'll quickly become confused about what circuit you are actually running and why.
+
+Imagine Alice (running the main circuit) proving something to Bob (running the recursive circuit), and Bob verifying her proof within his proof. The intermediate proof meant to be verified inside another circuit is Alice's. The only final proof in this scenario is the last one (e.g., the one sent onchain).
+
+Proving Backend
+With the witness, we move to proving. In this example we use bb.js to generate the proof and the verification key of the inner circuit.
+
+Instantiate the UltraHonkBackend (Honk proofs) for both circuits:
+
+
+Copy
+// Setup backend for main circuit (inner circuit)
+mainBackend = new UltraHonkBackend(
+  mainBytecode,
+  { threads: 8 },
+  { recursive: true }
+);
+
+// Setup backend for recursive circuit (outer circuit)
+recursiveBackend = new UltraHonkBackend(
+  recursiveBytecode,
+  { threads: 8 },
+  { recursive: false }
+);
+We're setting 8 threads here, but you can use the os.cpus() object in Node.js or navigator.hardwareConcurrency on the browser to make the most out of available CPU cores.
+
+Generate the proof and the verification key (VK) for the main (inner) circuit:
+
+
+Copy
+// Generate proof for main circuit with keccakZK for recursive verification
+const mainProofData = await mainBackend.generateProof(mainWitness, { keccakZK: true });
+
+// Generate verification key for main circuit
+const mainVerificationKey = await mainBackend.getVerificationKey({ keccakZK: true });
+One common mistake is to forget who generates the verification key.
+
+In a scenario where Alice and Bob interact, Bob should generate the verification key himself. If Bob accepts the proof and VK from Alice, Alice could craft a VK that allows proving any statement.
+
+Prepare inputs for the recursive program by converting the VK and proof into fields:
+
+
+Copy
+// Convert proof and VK to fields for recursive circuit
+const barretenbergAPI = await Barretenberg.new({ threads: 1 });
+const proofAsFields = deflattenFields(new RawBuffer(mainProofData.proof));
+const vkAsFields = (await barretenbergAPI.acirVkAsFieldsUltraHonk(new RawBuffer(mainVerificationKey)))
+  .map(field => field.toString());
+
+// Prepare inputs for recursive circuit
+const recursiveInputs = {
+  proof: proofAsFields,
+  public_inputs: [2],
+  verification_key: vkAsFields
+};
+
+await barretenbergAPI.destroy();
+Recursive proof generation
+With the proof and VK in the correct format, generating a recursive proof is the same as generating a normal proof. Use the backend for the recursive circuit to produce it:
+
+
+Copy
+// Generate witness for recursive circuit
+const { witness: recursiveWitness } = await recursiveNoir.execute(recursiveInputs);
+
+// Generate recursive proof
+const recursiveProofData = await recursiveBackend.generateProof(recursiveWitness);
+You can chain this approach to create further recursive proofs (e.g., building aggregation trees).
+
+Example resources
+
+Non-exhaustive example of recursive aggregation: https://github.com/noir-lang/noir-examples/tree/master/recursion
+
+Join the Noir Discord for discussions: https://discord.gg/noirlang
+
+Keep in mind that recursive proof aggregation is experimental; you may need to tweak or downgrade versions for compatibility.
+
+One doc tagged with "cli"
+Comprehensive auto-generated reference for the bb (Barretenberg) command-line interface with all commands and options.
+
+bb CLI Reference
+
