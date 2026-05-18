@@ -34,6 +34,14 @@ export interface GameParticipant {
   skinId?: SnakeSkinId;
 }
 
+interface GameplayDeathWitness {
+  deathMode: "boundary" | "collision";
+  headDistanceSq: number;
+  threatDistanceSq: number;
+  referenceElapsedMs: number;
+  referenceSafeRadius: number;
+}
+
 interface GameShellProps {
   mode: GameMode;
   matchId?: string;
@@ -46,6 +54,7 @@ interface GameShellProps {
   walletProvider?: WalletProvider | null;
   joinedPlayerAddresses?: `0x${string}`[];
   externalRenderState?: ArenaRenderState | null;
+  externalMatchSeed?: string;
   externalStatusMessage?: string;
   onLiveInput?: (input: { angleRadians: number; boosting: boolean }) => void;
 }
@@ -77,6 +86,7 @@ export function GameShell({
   walletProvider,
   joinedPlayerAddresses,
   externalRenderState,
+  externalMatchSeed,
   externalStatusMessage,
   onLiveInput
 }: GameShellProps) {
@@ -93,6 +103,7 @@ export function GameShell({
   const boostActiveRef = useRef(false);
   const snakeSkinIdsRef = useRef<Record<string, SnakeSkinId>>({});
   const matchRef = useRef<MatchState | null>(null);
+  const deathWitnessesRef = useRef<Record<string, GameplayDeathWitness>>({});
 
   const resolvedMaxPlayers = clampNumber(
     participants?.length && participants.length > 0 ? participants.length : mode === "practice" ? PRACTICE_PLAYERS : maxPlayers,
@@ -106,6 +117,10 @@ export function GameShell({
     setPlayerProfile(profile);
     currentPlayerIdRef.current = localPlayerId ?? profile.id;
   }, [localPlayerId]);
+
+  useEffect(() => {
+    deathWitnessesRef.current = {};
+  }, [matchId, mode, runNonce]);
 
   useEffect(() => {
     if (externalRenderState) {
@@ -136,6 +151,7 @@ export function GameShell({
     );
 
     matchRef.current = nextMatch;
+    deathWitnessesRef.current = {};
     renderStateRef.current = renderFromMatch(nextMatch);
     setUiState(renderStateRef.current);
     setStatusMessage(
@@ -152,6 +168,7 @@ export function GameShell({
         currentMatch,
         buildLocalInputs(currentMatch, currentPlayerIdRef.current, pointerAngleRef.current, boostActiveRef.current)
       );
+      captureDeathWitnesses(currentMatch, next, deathWitnessesRef.current);
       matchRef.current = next;
       renderStateRef.current = renderFromMatch(next);
       if (next.phase === "ended" || next.tick % HUD_SYNC_INTERVAL_TICKS === 0) {
@@ -173,6 +190,7 @@ export function GameShell({
       return;
     }
 
+    captureDeathWitnesses(renderStateRef.current, externalRenderState, deathWitnessesRef.current);
     renderStateRef.current = externalRenderState;
     setUiState(externalRenderState);
   }, [externalRenderState]);
@@ -318,11 +336,16 @@ export function GameShell({
 
         <ZkProofPanel
           escrowAddress={escrowAddress}
+          elapsedMs={uiState.elapsedMs}
+          deathWitnesses={deathWitnessesRef.current}
           joinedPlayerAddresses={joinedPlayerAddresses}
+          matchConfig={uiState.config}
           matchEnded={uiState.phase === "ended"}
           matchId={roomSummary.matchId}
+          matchSeed={externalMatchSeed ?? matchRef.current?.seed}
           mode={mode}
-          placements={placements.slice(0, 3)}
+          playerCount={resolvedMaxPlayers}
+          placements={placements}
           players={Object.values(uiState.snakes)}
           stakeEth={roomSummary.stakeEth}
           walletProvider={walletProvider}
@@ -435,6 +458,49 @@ function renderFromMatch(match: MatchState): ArenaRenderState {
   };
 }
 
+function captureDeathWitnesses(
+  previous: Pick<MatchState, "snakes" | "elapsedMs" | "config">,
+  next: Pick<MatchState, "snakes" | "elapsedMs" | "config">,
+  store: Record<string, GameplayDeathWitness>
+) {
+  for (const [playerId, nextSnake] of Object.entries(next.snakes)) {
+    const previousSnake = previous.snakes[playerId];
+    if (!previousSnake || !previousSnake.alive || nextSnake.alive || store[playerId]) {
+      continue;
+    }
+
+    const referenceElapsedMs = Math.max(0, Math.round(next.elapsedMs));
+    const referenceSafeRadius = computeProofSafeRadius(referenceElapsedMs, next.config);
+    const nextHead = nextSnake.segments[0];
+    const previousHead = previousSnake.segments[0];
+    const head = nextHead ?? previousHead;
+    if (!head) {
+      continue;
+    }
+
+    const headDistanceSq = Math.max(0, Math.round(distanceSquared(head.x, head.y, 0, 0)));
+    const nearestThreatDistanceSq = Math.min(
+      findNearestThreatDistanceSq(previousSnake.id, previous.snakes, previousHead),
+      findNearestThreatDistanceSq(nextSnake.id, next.snakes, nextHead)
+    );
+    const safeRadiusSq = referenceSafeRadius * referenceSafeRadius;
+    const deathMode = headDistanceSq > safeRadiusSq ? "boundary" : "collision";
+
+    store[playerId] = {
+      deathMode,
+      headDistanceSq,
+      threatDistanceSq:
+        deathMode === "boundary"
+          ? 0
+          : Number.isFinite(nearestThreatDistanceSq)
+            ? Math.max(0, Math.round(nearestThreatDistanceSq))
+            : safeRadiusSq + 1,
+      referenceElapsedMs,
+      referenceSafeRadius
+    };
+  }
+}
+
 function createEmptyRenderState(): ArenaRenderState {
   return {
     phase: "running",
@@ -462,12 +528,53 @@ function distanceSquared(ax: number, ay: number, bx: number, by: number) {
   return dx * dx + dy * dy;
 }
 
+function findNearestThreatDistanceSq(
+  snakeId: string,
+  snakes: Record<string, Snake>,
+  head: { x: number; y: number } | undefined
+) {
+  if (!head) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  let minDistance = Number.POSITIVE_INFINITY;
+  for (const snake of Object.values(snakes)) {
+    if (snake.id === snakeId || !snake.alive) {
+      continue;
+    }
+
+    for (let index = 1; index < snake.segments.length; index += 1) {
+      const segment = snake.segments[index];
+      if (!segment) {
+        continue;
+      }
+
+      const nextDistance = distanceSquared(head.x, head.y, segment.x, segment.y);
+      if (nextDistance < minDistance) {
+        minDistance = nextDistance;
+      }
+    }
+  }
+
+  return minDistance;
+}
+
 function clampRatio(value: number, max: number) {
   if (max <= 0) {
     return 0;
   }
 
   return Math.min(1, Math.max(0, value / max));
+}
+
+function computeProofSafeRadius(elapsedMs: number, config: MatchState["config"]) {
+  const durationMs = Math.max(1, Math.round(config.durationMs));
+  const boundedElapsedMs = Math.max(0, Math.min(Math.round(elapsedMs), durationMs));
+  const initialSafeRadius = Math.max(0, Math.round(config.initialSafeRadius));
+  const finalSafeRadius = Math.max(0, Math.round(config.finalSafeRadius));
+  const radiusDelta = Math.max(0, initialSafeRadius - finalSafeRadius);
+  const roundedDelta = Math.floor((radiusDelta * boundedElapsedMs + durationMs / 2) / durationMs);
+  return initialSafeRadius - roundedDelta;
 }
 
 function roomSummaryDurationMs(durationSeconds: number) {

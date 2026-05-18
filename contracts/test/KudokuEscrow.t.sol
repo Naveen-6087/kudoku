@@ -180,8 +180,8 @@ contract KudokuEscrowTest {
 
         address[3] memory winners = [address(this), address(alice), address(bob)];
         uint16[3] memory splits = [uint16(6500), uint16(2500), uint16(1000)];
-        bytes32[] memory rankingInputs = buildRankingInputs();
-        bytes32[] memory settlementInputs = buildSettlementInputs(3 ether, 300, splits);
+        bytes32[] memory rankingInputs = buildRankingInputs(matchId, 3);
+        bytes32[] memory settlementInputs = buildSettlementInputs(matchId, 3 ether, 300, splits);
 
         bytes32 resultHash = escrow.hashVerifiedResult(matchId, winners, splits, rankingInputs, settlementInputs);
         escrow.settleMatch(matchId, resultHash, winners, splits, hex"01", rankingInputs, hex"02", settlementInputs);
@@ -204,8 +204,8 @@ contract KudokuEscrowTest {
 
         address[3] memory winners = [address(this), address(alice), address(bob)];
         uint16[3] memory splits = [uint16(6500), uint16(2500), uint16(1000)];
-        bytes32[] memory rankingInputs = buildRankingInputs();
-        bytes32[] memory settlementInputs = buildSettlementInputs(3 ether, 300, splits);
+        bytes32[] memory rankingInputs = buildRankingInputs(matchId, 3);
+        bytes32[] memory settlementInputs = buildSettlementInputs(matchId, 3 ether, 300, splits);
 
         bool reverted;
         try escrow.settleMatch(
@@ -240,14 +240,23 @@ contract KudokuEscrowTest {
         return new KudokuEscrow(address(feeRecipient), address(rankingVerifier), address(settlementVerifier));
     }
 
-    function buildRankingInputs() private pure returns (bytes32[] memory rankingInputs) {
-        rankingInputs = new bytes32[](3);
-        rankingInputs[0] = bytes32(uint256(50));
-        rankingInputs[1] = bytes32(uint256(30));
-        rankingInputs[2] = bytes32(uint256(10));
+    function buildRankingInputs(uint256 matchId, uint256 playerCount) private pure returns (bytes32[] memory rankingInputs) {
+        rankingInputs = new bytes32[](11);
+        rankingInputs[0] = bytes32(matchId);
+        rankingInputs[1] = bytes32(playerCount);
+        rankingInputs[2] = bytes32(uint256(50));
+        rankingInputs[3] = bytes32(uint256(12_000));
+        rankingInputs[4] = bytes32(uint256(1));
+        rankingInputs[5] = bytes32(uint256(30));
+        rankingInputs[6] = bytes32(uint256(9_000));
+        rankingInputs[7] = bytes32(uint256(2));
+        rankingInputs[8] = bytes32(uint256(10));
+        rankingInputs[9] = bytes32(uint256(6_000));
+        rankingInputs[10] = bytes32(uint256(3));
     }
 
     function buildSettlementInputs(
+        uint256 matchId,
         uint256 pool,
         uint16 platformFeeBps,
         uint16[3] memory splits
@@ -258,12 +267,16 @@ contract KudokuEscrowTest {
         uint256 second = (prizePool * splits[1]) / 10_000;
         uint256 third = prizePool - first - second;
 
-        settlementInputs = new bytes32[](5);
-        settlementInputs[0] = bytes32(pool);
-        settlementInputs[1] = bytes32(fee);
-        settlementInputs[2] = bytes32(first);
-        settlementInputs[3] = bytes32(second);
-        settlementInputs[4] = bytes32(third);
+        settlementInputs = new bytes32[](9);
+        settlementInputs[0] = bytes32(matchId);
+        settlementInputs[1] = bytes32(pool);
+        settlementInputs[2] = bytes32(fee);
+        settlementInputs[3] = bytes32(uint256(splits[0]));
+        settlementInputs[4] = bytes32(uint256(splits[1]));
+        settlementInputs[5] = bytes32(uint256(splits[2]));
+        settlementInputs[6] = bytes32(first);
+        settlementInputs[7] = bytes32(second);
+        settlementInputs[8] = bytes32(third);
     }
 
     function assertSettlementBalances(

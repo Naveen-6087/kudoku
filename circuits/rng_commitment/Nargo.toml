@@ -1,0 +1,7 @@
+[package]
+name = "rng_commitment"
+type = "bin"
+authors = ["Kudoku"]
+compiler_version = ">=1.0.0"
+
+[dependencies]

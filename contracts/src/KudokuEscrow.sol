@@ -210,7 +210,10 @@ contract KudokuEscrow {
             _deriveSettlementValues(matchData.stakeWei, matchData.players.length, matchData.platformFeeBps, winnerBps);
 
         _validateProofBundle(
+            matchId,
+            matchData.players.length,
             settlementValues,
+            winnerBps,
             rankingProof,
             rankingPublicInputs,
             settlementProof,
@@ -245,12 +248,12 @@ contract KudokuEscrow {
     }
 
     function verifyRankingProof(bytes calldata proof, bytes32[] calldata publicInputs) external view returns (bool) {
-        _validateRankingInputs(publicInputs);
+        if (publicInputs.length != 11) revert InvalidPublicInputs();
         return _verifyProof(RANKING_VERIFIER, proof, publicInputs);
     }
 
     function verifySettlementProof(bytes calldata proof, bytes32[] calldata publicInputs) external view returns (bool) {
-        if (publicInputs.length != 5) revert InvalidPublicInputs();
+        if (publicInputs.length != 9) revert InvalidPublicInputs();
         return _verifyProof(SETTLEMENT_VERIFIER, proof, publicInputs);
     }
 
@@ -382,23 +385,35 @@ contract KudokuEscrow {
         }
     }
 
-    function _validateRankingInputs(bytes32[] calldata rankingPublicInputs) private pure {
-        if (rankingPublicInputs.length != 3) revert InvalidPublicInputs();
+    function _validateRankingInputs(uint256 matchId, uint256 playerCount, bytes32[] calldata rankingPublicInputs)
+        private
+        pure
+    {
+        if (rankingPublicInputs.length != 11) revert InvalidPublicInputs();
+        if (uint256(rankingPublicInputs[0]) != matchId || uint256(rankingPublicInputs[1]) != playerCount) {
+            revert InvalidPublicInputs();
+        }
     }
 
     function _validateSettlementInputs(
+        uint256 matchId,
         uint256 totalPool,
         uint256 platformFee,
+        uint16[3] calldata winnerBps,
         uint256[3] memory payouts,
         bytes32[] calldata settlementPublicInputs
     ) private pure {
-        if (settlementPublicInputs.length != 5) revert InvalidPublicInputs();
+        if (settlementPublicInputs.length != 9) revert InvalidPublicInputs();
         if (
-            uint256(settlementPublicInputs[0]) != totalPool ||
-            uint256(settlementPublicInputs[1]) != platformFee ||
-            uint256(settlementPublicInputs[2]) != payouts[0] ||
-            uint256(settlementPublicInputs[3]) != payouts[1] ||
-            uint256(settlementPublicInputs[4]) != payouts[2]
+            uint256(settlementPublicInputs[0]) != matchId ||
+            uint256(settlementPublicInputs[1]) != totalPool ||
+            uint256(settlementPublicInputs[2]) != platformFee ||
+            uint256(settlementPublicInputs[3]) != winnerBps[0] ||
+            uint256(settlementPublicInputs[4]) != winnerBps[1] ||
+            uint256(settlementPublicInputs[5]) != winnerBps[2] ||
+            uint256(settlementPublicInputs[6]) != payouts[0] ||
+            uint256(settlementPublicInputs[7]) != payouts[1] ||
+            uint256(settlementPublicInputs[8]) != payouts[2]
         ) {
             revert InvalidPublicInputs();
         }
@@ -411,15 +426,18 @@ contract KudokuEscrow {
     }
 
     function _validateProofBundle(
+        uint256 matchId,
+        uint256 playerCount,
         SettlementValues memory settlementValues,
+        uint16[3] calldata winnerBps,
         bytes calldata rankingProof,
         bytes32[] calldata rankingPublicInputs,
         bytes calldata settlementProof,
         bytes32[] calldata settlementPublicInputs
     ) private view {
-        _validateRankingInputs(rankingPublicInputs);
+        _validateRankingInputs(matchId, playerCount, rankingPublicInputs);
         _validateSettlementInputs(
-            settlementValues.pool, settlementValues.fee, settlementValues.payouts, settlementPublicInputs
+            matchId, settlementValues.pool, settlementValues.fee, winnerBps, settlementValues.payouts, settlementPublicInputs
         );
 
         if (!_verifyProof(RANKING_VERIFIER, rankingProof, rankingPublicInputs)) revert InvalidProof();

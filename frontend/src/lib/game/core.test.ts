@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createMatch, matchConfigForPlayers, orderPlacements, safeRadiusAt, serializeForReplay, stepMatch } from "./core";
+import { createMatch, matchConfigForPlayers, orderPlacements, playerTieBreakKey, safeRadiusAt, serializeForReplay, stepMatch } from "./core";
 
 describe("kudoku game core", () => {
   it("creates deterministic food layouts from a seed", () => {
@@ -69,6 +69,22 @@ describe("kudoku game core", () => {
 
     expect(ranked.map((entry) => entry.playerId)).toEqual(["heavy-dead", "third", "survivor"]);
     expect(ranked.map((entry) => entry.mass)).toEqual([28, 18, 12]);
+  });
+
+  it("uses the same deterministic tie-break ordering as the proof layer", () => {
+    const tied = orderPlacements([
+      { playerId: "0xbbb", rank: 0, mass: 20, survivedMs: 5_000, alive: false },
+      { playerId: "0xaaa", rank: 0, mass: 20, survivedMs: 5_000, alive: false },
+      { playerId: "0xccc", rank: 0, mass: 20, survivedMs: 5_000, alive: false }
+    ]);
+
+    const expected = ["0xbbb", "0xaaa", "0xccc"].sort((left, right) => {
+      const leftKey = playerTieBreakKey(left);
+      const rightKey = playerTieBreakKey(right);
+      return leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0;
+    });
+
+    expect(tied.map((entry) => entry.playerId)).toEqual(expected);
   });
 
   it("boosting moves farther while preserving mass and spending boost energy", () => {

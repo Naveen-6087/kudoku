@@ -2,8 +2,8 @@
   "chainId": 84532,
   "deployer": "0x84b8a57c65c64066E7dED72D1c8fbE1f71a64dD8",
   "feeRecipient": "0x84b8a57c65c64066E7dED72D1c8fbE1f71a64dD8",
-  "rankingVerifier": "0xa6D7929C09B6753d15524129Ba4cC109978C1176",
-  "settlementVerifier": "0xBF00d12660ED58FEDD063765E78432Ac1b652a76",
-  "escrowAddress": "0xc26ac6ae99f4bf028A440076CBd8560139b1d6A6",
-  "transactionHash": "0xe3c6c3bc6910234a435b03c26f2d0366cb05dc07d78d4c84504529faaf6cd293"
+  "rankingVerifier": "0xA85F102Ac56595B53a91d3D419F8e5C8B51A1537",
+  "settlementVerifier": "0xF20acE448F740043232226065191Fff599418836",
+  "escrowAddress": "0xdC78065ad6307d2F316DcE774E45c2388F9Fe556",
+  "transactionHash": "0xa3c60f3b81d0412a90a5a7ff6404dde3589bf3c72377f7fa6e0c4490c85e5f5c"
 }

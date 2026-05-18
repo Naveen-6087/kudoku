@@ -1,5 +1,8 @@
 {
   "chainId": 84532,
-  "rankingVerifier": "0xa6D7929C09B6753d15524129Ba4cC109978C1176",
-  "settlementVerifier": "0xBF00d12660ED58FEDD063765E78432Ac1b652a76"
+  "rankingVerifier": "0xA85F102Ac56595B53a91d3D419F8e5C8B51A1537",
+  "settlementVerifier": "0xF20acE448F740043232226065191Fff599418836",
+  "rngCommitmentVerifier": "0x6d138f48d83f40C8A35d3FAA6d11e6193CFcbCeA",
+  "arenaScheduleVerifier": "0x390414DeEf86B348aA63BcE4C5C882855177c671",
+  "eliminationVerifier": "0xa2F289D301819Acba53638a991610b07FD68a9f6"
 }

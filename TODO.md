@@ -45,13 +45,18 @@
 - Applied the `ui3.md` cleanup pass: the hero snake now sits slightly lower while keeping the top-entry cinematic crop, the stray homepage class was removed, and the favicon pipeline was replaced with properly cropped `16x16` / `32x32` / `48x48` / `180x180` assets generated from `frontend/public/favicon.png` so the tab icon reads clearly.
 - Fixed the follow-up runtime issues around the new paid-lobby pass: `/favicon.ico` now resolves from `frontend/src/app/favicon.ico` instead of conflicting with a duplicate `public` file, `/play` room refreshes now batch match reads with viem multicall and poll less aggressively/only while visible to avoid Base Sepolia rate limits, and Privy no longer boots embedded/Coinbase-specific wallet flows that were producing the extra console noise.
 - Removed the active Phala/dstack deployment wiring after dropping the TEE approach: deleted the dedicated Phala compose files, simplified the backend server metadata/url handling back to generic public URLs only, and cleaned the top-level docs/package copy to stop advertising Phala-specific deployment.
+- Expanded the summary ZK stack for the next milestone: `ranking` and `settlement` now bind to richer match-context public inputs, new `rng_commitment` and `arena_schedule` circuits are part of the Noir workspace/build pipeline, the proof drawer can generate and track all four summary proofs, and the escrow contract/tests now validate the upgraded ranking/settlement public-input bundles.
+- Replaced the rejected top-3 gameplay snapshot prototype with a universal `elimination` circuit that summarizes deaths, kills, boundary exits, and final ordering across up to 12 snakes, rebuilt all Noir artifacts/verifiers, registered the new VK set, redeployed the Base Sepolia verifier stack plus escrow, and rewired the frontend env to the new addresses.
+- Fixed the current proof regressions by widening settlement arithmetic to avoid wei overflow, wiring live-room seed/player-count data back into the proof drawer, aligning gameplay tie-break ordering with the ZK payload order, refreshing the generated circuit artifacts/VKs/verifiers, re-registering VK hashes, and cleaning the stale `gameplay_v1` generated outputs.
+- Redeployed the refreshed Base Sepolia verifier stack and escrow for the proof-regression fix, updated the deployment records, and rewired `frontend/.env.local` to the new verifier + escrow addresses.
+- Fixed the elimination proof constraint mismatch by correcting boundary-death witness encoding, preventing late-match safe-radius inference from overriding recorded collision deaths, relaxing the elimination circuit to ignore irrelevant boundary threat distance, stress-testing the witness path across simulated matches, regenerating artifacts/VKs/verifiers, re-registering VKs, and redeploying the full Base Sepolia stack again.
+- Fixed the remaining elimination verification/submission path issue on the frontend: on-chain verifier calls and zkVerify submissions now normalize public inputs as left-padded `bytes32`, verifier revert selectors are decoded into readable errors, and the RNG / arena schedule cards now expose the on-chain verification action in stake rooms.
+- Replaced the brittle geometry-heavy elimination proof with a universal summary-based elimination circuit across up to 12 snakes, regenerated artifacts/VKs/verifiers, re-registered the new elimination VK, redeployed the full Base Sepolia verifier stack plus escrow, and rewired `frontend/.env.local` to the latest live addresses.
 
 ## In Progress
 
-- Expanding the Noir proof surface beyond ranking / settlement into fuller replay and match-validation circuits.
+- Add verification-key registration flow and proof-history persistence on top of the new zkVerify status UI.
 
 ## Pending
 
-- Expand the Noir circuits beyond ranking / settlement into RNG, arena, and replay validation.
-- Add verification-key registration flow and proof-history persistence on top of the new zkVerify status UI.
 - Add deterministic replay and dispute/audit tooling.

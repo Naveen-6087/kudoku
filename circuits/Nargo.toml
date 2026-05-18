@@ -1,5 +1,5 @@
 [workspace]
-members = ["ranking", "settlement"]
+members = ["ranking", "settlement", "rng_commitment", "arena_schedule", "elimination"]
 default-member = "settlement"
 
 # ZK implementation must mirror the compatible toolchain from zkv-uno.

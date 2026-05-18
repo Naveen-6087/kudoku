@@ -6,6 +6,7 @@ This workspace starts with small settlement-oriented Noir circuits. Later phases
 - final ranking/winner validation
 - payout math validation
 - shrinking arena invariant validation
+- universal elimination summary validation
 
 Run all commands through WSL with the pinned Noir toolchain that matches the
 `zkv-uno` frontend dependency family:
@@ -32,6 +33,9 @@ wsl bash -lc "cd /mnt/c/Users/hemav/OneDrive/Desktop/kudoku/circuits && ~/.nargo
 wsl bash -lc "cd /mnt/c/Users/hemav/OneDrive/Desktop/kudoku/circuits && ~/.nargo/bin/nargo compile --workspace"
 wsl bash -lc "cd /mnt/c/Users/hemav/OneDrive/Desktop/kudoku/circuits && ~/.nargo/bin/nargo compile --package settlement"
 wsl bash -lc "cd /mnt/c/Users/hemav/OneDrive/Desktop/kudoku/circuits && ~/.nargo/bin/nargo compile --package ranking"
+wsl bash -lc "cd /mnt/c/Users/hemav/OneDrive/Desktop/kudoku/circuits && ~/.nargo/bin/nargo compile --package rng_commitment"
+wsl bash -lc "cd /mnt/c/Users/hemav/OneDrive/Desktop/kudoku/circuits && ~/.nargo/bin/nargo compile --package arena_schedule"
+wsl bash -lc "cd /mnt/c/Users/hemav/OneDrive/Desktop/kudoku/circuits && ~/.nargo/bin/nargo compile --package elimination"
 ```
 
 Compiled ACIR artifacts land in:
@@ -39,6 +43,9 @@ Compiled ACIR artifacts land in:
 ```txt
 circuits/target/ranking.json
 circuits/target/settlement.json
+circuits/target/rng_commitment.json
+circuits/target/arena_schedule.json
+circuits/target/elimination.json
 ```
 
 Build the full frontend/on-chain artifact bundle with:
@@ -54,6 +61,14 @@ npm run zk:register-vks
 - hex-encoded verification keys at `circuits/target/hex/*_vk.hex`
 - Solidity verifier contracts at `contracts/src/verifiers/*.sol`
 - synced frontend assets at `frontend/public/circuits/*.{json,vk}`
+
+The current workspace circuits are:
+
+- `ranking`
+- `settlement`
+- `rng_commitment`
+- `arena_schedule`
+- `elimination`
 
 `npm run zk:register-vks` optionally registers those VKs with zkVerify/Kurier using the
 configured API key and writes the returned hashes into:

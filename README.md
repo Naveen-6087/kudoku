@@ -36,15 +36,18 @@ npm run lint
 
 ## Frontend env
 
-Set frontend env vars in `frontend/.env.local`:
+Set frontend env vars in `frontend/.env.local`.
+
+`frontend/.env.local` is **gitignored** and should stay local-only. Do not commit API keys, app secrets, or private keys.
 
 ```bash
 NEXT_PUBLIC_PRIVY_APP_ID=
 NEXT_PUBLIC_PRIVY_CLIENT_ID=
 NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL=https://sepolia.base.org
-NEXT_PUBLIC_ESCROW_ADDRESS=0x8a4a6ac17F90E9b603Eb97732A8807585ea9A9a1
+NEXT_PUBLIC_ESCROW_ADDRESS=0xdC78065ad6307d2F316DcE774E45c2388F9Fe556
 NEXT_PUBLIC_KURIER_API_URL=https://api-testnet.kurier.xyz/api/v1
 NEXT_PUBLIC_KURIER_API_KEY=
+PRIVY_APP_SECRET=
 ```
 
 Privy setup notes:
@@ -66,6 +69,9 @@ The frontend ships the current Noir artifacts directly under `frontend/public/ci
 
 - `ranking.json`
 - `settlement.json`
+- `rng_commitment.json`
+- `arena_schedule.json`
+- `elimination.json`
 
 The browser proof pipeline mirrors the `zkv-uno` compatibility line:
 
@@ -73,6 +79,35 @@ The browser proof pipeline mirrors the `zkv-uno` compatibility line:
 - `@noir-lang/noir_js`: `1.0.0-beta.6`
 - `@noir-lang/acvm_js`: `1.0.0-beta.6`
 - Kurier submissions use `proofOptions.variant = "Plain"`
+
+See [circuits.md](./circuits.md) for the full circuit breakdown, metrics, and cost notes.
+
+### Circuit summary
+
+Metrics below come from:
+
+```bash
+wsl bash -lc "cd /mnt/c/Users/hemav/OneDrive/Desktop/kudoku/circuits && ~/.nargo/bin/nargo info --workspace"
+```
+
+| Circuit | Role | ACIR | Brillig | Browser JSON | Notes |
+| --- | --- | ---: | ---: | ---: | --- |
+| `rng_commitment` | Seed + food commitment reveal | 15 | 30 | 23.91 KiB | Smallest proving circuit |
+| `arena_schedule` | Shrinking-zone schedule check | 44 | 17 | 3.75 KiB | Small |
+| `settlement` | Payout arithmetic | 59 | 8 | 3.75 KiB | Small |
+| `ranking` | Top-3 ordering | 75 | 8 | 4.79 KiB | Small |
+| `elimination` | All-player elimination summary | 982 | 47 | 65.37 KiB | By far the heaviest circuit |
+
+### Current Base Sepolia deployment
+
+| Contract | Address |
+| --- | --- |
+| Escrow | `0xdC78065ad6307d2F316DcE774E45c2388F9Fe556` |
+| Ranking verifier | `0xA85F102Ac56595B53a91d3D419F8e5C8B51A1537` |
+| Settlement verifier | `0xF20acE448F740043232226065191Fff599418836` |
+| RNG commitment verifier | `0x6d138f48d83f40C8A35d3FAA6d11e6193CFcbCeA` |
+| Arena schedule verifier | `0x390414DeEf86B348aA63BcE4C5C882855177c671` |
+| Elimination verifier | `0xa2F289D301819Acba53638a991610b07FD68a9f6` |
 
 ## Backend container
 
@@ -100,7 +135,7 @@ wsl bash -lc "cd /mnt/c/Users/hemav/OneDrive/Desktop/kudoku/contracts && BASE_SE
 The current deployed escrow address is:
 
 ```txt
-0x8a4a6ac17F90E9b603Eb97732A8807585ea9A9a1
+0xdC78065ad6307d2F316DcE774E45c2388F9Fe556
 ```
 
 ## WSL rule

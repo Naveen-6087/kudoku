@@ -2,14 +2,17 @@
 
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { formatEther, isAddress, parseEther, type Address } from "viem";
-import type { Placement, Snake } from "@/lib/game/core";
+import { playerTieBreakKey, type MatchConfig, type Placement, type Snake } from "@/lib/game/core";
 import {
   getExplorerTransactionUrl,
   settleEscrowMatch,
   type WalletProvider
 } from "@/lib/escrow/client";
 import {
+  generateArenaScheduleProof,
+  generateEliminationProof,
   generateRankingProof,
+  generateRngCommitmentProof,
   generateSettlementProof,
   verifyProofLocally,
   type SupportedCircuitName
@@ -30,12 +33,26 @@ interface ZkProofPanelProps {
   mode: "practice" | "stake";
   matchEnded?: boolean;
   matchId?: string;
+  playerCount?: number;
   placements: Placement[];
   players: Snake[];
   stakeEth?: string;
   escrowAddress?: `0x${string}` | null;
   walletProvider?: WalletProvider | null;
   joinedPlayerAddresses?: `0x${string}`[];
+  matchSeed?: string;
+  matchConfig?: MatchConfig;
+  elapsedMs?: number;
+  deathWitnesses?: Record<
+    string,
+    {
+      deathMode: "boundary" | "collision";
+      headDistanceSq: number;
+      threatDistanceSq: number;
+      referenceElapsedMs: number;
+      referenceSafeRadius: number;
+    }
+  >;
 }
 
 type ProofStage = "idle" | "generating" | "ready" | "verifying" | "submitting" | "tracking" | "complete" | "error";
@@ -57,24 +74,35 @@ interface ProofRunState {
 
 const KURIER_ENABLED = Boolean(process.env.NEXT_PUBLIC_KURIER_API_KEY);
 const SETTLEMENT_SPLIT_BPS = [6500, 2500, 1000] as const;
+const FNV64_PRIME = 0x100000001b3n;
+const FNV64_OFFSET_BASIS = 0xcbf29ce484222325n;
+const FNV64_OFFSET_BASIS_ALT = 0x84222325cbf29cen;
 
 export function ZkProofPanel({
   mode,
   matchEnded = false,
   matchId,
+  playerCount,
   placements,
   players,
   stakeEth,
   escrowAddress,
   walletProvider,
-  joinedPlayerAddresses
+  joinedPlayerAddresses,
+  matchSeed,
+  matchConfig,
+  elapsedMs = 0,
+  deathWitnesses
 }: ZkProofPanelProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [busy, setBusy] = useState<{ circuit: SupportedCircuitName; action: BusyAction } | null>(null);
   const proofCacheRef = useRef<Partial<Record<SupportedCircuitName, ZKProof>>>({});
   const [runs, setRuns] = useState<Record<SupportedCircuitName, ProofRunState>>({
     ranking: createInitialRun("ranking", true),
-    settlement: createInitialRun("settlement", mode === "stake")
+    settlement: createInitialRun("settlement", mode === "stake"),
+    rng_commitment: createInitialRun("rng_commitment", Boolean(matchSeed && matchConfig)),
+    arena_schedule: createInitialRun("arena_schedule", Boolean(matchConfig)),
+    elimination: createInitialRun("elimination", Boolean(matchEnded && matchConfig && placements.length >= 3))
   });
 
   useEffect(() => {
@@ -83,13 +111,32 @@ export function ZkProofPanel({
     }
   }, [matchEnded, mode]);
 
+  const matchIdField = useMemo(() => (matchId && /^\d+$/.test(matchId) ? BigInt(matchId) : 0n), [matchId]);
+  const playerCountField = useMemo(
+    () => BigInt(Math.max(3, Math.round(playerCount ?? players.length))),
+    [playerCount, players.length]
+  );
+
+  const rankingPayload = useMemo(() => {
+    const topThree = [0, 1, 2].map((index) => placements[index]);
+    return {
+      match_id: matchIdField,
+      player_count: playerCountField,
+      first_mass: BigInt(Math.max(0, Math.round(topThree[0]?.mass ?? 0))),
+      first_survived_ms: BigInt(Math.max(0, Math.round(topThree[0]?.survivedMs ?? 0))),
+      first_tiebreak_key: playerTieBreakKey(topThree[0]?.playerId ?? "first"),
+      second_mass: BigInt(Math.max(0, Math.round(topThree[1]?.mass ?? 0))),
+      second_survived_ms: BigInt(Math.max(0, Math.round(topThree[1]?.survivedMs ?? 0))),
+      second_tiebreak_key: playerTieBreakKey(topThree[1]?.playerId ?? "second"),
+      third_mass: BigInt(Math.max(0, Math.round(topThree[2]?.mass ?? 0))),
+      third_survived_ms: BigInt(Math.max(0, Math.round(topThree[2]?.survivedMs ?? 0))),
+      third_tiebreak_key: playerTieBreakKey(topThree[2]?.playerId ?? "third")
+    };
+  }, [matchIdField, placements, playerCountField]);
+
   const topThreeMasses = useMemo(
-    () =>
-      [0, 1, 2].map((index) => {
-        const placement = placements[index];
-        return BigInt(Math.max(0, Math.round(placement?.mass ?? 0)));
-      }),
-    [placements]
+    () => [rankingPayload.first_mass, rankingPayload.second_mass, rankingPayload.third_mass],
+    [rankingPayload]
   );
 
   const settlementPayload = useMemo(() => {
@@ -103,8 +150,12 @@ export function ZkProofPanel({
     const prizePool = totalPool - platformFee;
 
     return {
+      match_id: matchIdField,
       total_pool: totalPool,
       platform_fee: platformFee,
+      first_bps: BigInt(SETTLEMENT_SPLIT_BPS[0]),
+      second_bps: BigInt(SETTLEMENT_SPLIT_BPS[1]),
+      third_bps: BigInt(SETTLEMENT_SPLIT_BPS[2]),
       first: (prizePool * BigInt(SETTLEMENT_SPLIT_BPS[0])) / 10_000n,
       second: (prizePool * BigInt(SETTLEMENT_SPLIT_BPS[1])) / 10_000n,
       third:
@@ -112,7 +163,104 @@ export function ZkProofPanel({
         (prizePool * BigInt(SETTLEMENT_SPLIT_BPS[0])) / 10_000n -
         (prizePool * BigInt(SETTLEMENT_SPLIT_BPS[1])) / 10_000n
     };
-  }, [mode, players.length, stakeEth]);
+  }, [matchIdField, mode, players.length, stakeEth]);
+
+  const rngPayload = useMemo(() => {
+    if (!matchSeed || !matchConfig) {
+      return null;
+    }
+
+    return {
+      match_id: matchIdField,
+      player_count: playerCountField,
+      initial_food_count: BigInt(Math.max(0, Math.round(matchConfig.initialFood))),
+      revealed_seed: fieldFromString(matchSeed)
+    };
+  }, [matchConfig, matchIdField, matchSeed, playerCountField]);
+
+  const arenaPayload = useMemo(() => {
+    if (!matchConfig) {
+      return null;
+    }
+
+    const boundedElapsedMs = Math.max(0, Math.min(Math.round(elapsedMs), Math.round(matchConfig.durationMs)));
+    const currentSafeRadius = computeProofSafeRadius(boundedElapsedMs, matchConfig);
+
+    return {
+      match_id: matchIdField,
+      duration_ms: BigInt(Math.max(1, Math.round(matchConfig.durationMs))),
+      elapsed_ms: BigInt(boundedElapsedMs),
+      initial_safe_radius: BigInt(Math.max(0, Math.round(matchConfig.initialSafeRadius))),
+      final_safe_radius: BigInt(Math.max(0, Math.round(matchConfig.finalSafeRadius))),
+      current_safe_radius: BigInt(Math.max(0, Math.round(currentSafeRadius))),
+      arena_damage_per_second: BigInt(Math.max(0, Math.round(matchConfig.arenaDamagePerSecond)))
+    };
+  }, [elapsedMs, matchConfig, matchIdField]);
+
+  const eliminationSetup = useMemo(() => {
+    if (!matchEnded) {
+      return { payload: null, reason: "Match must end before elimination verification." };
+    }
+
+    if (!matchConfig) {
+      return { payload: null, reason: "Match config required." };
+    }
+
+    if (placements.length < 3) {
+      return { payload: null, reason: "Final placement data is required." };
+    }
+
+    const slots = [];
+
+    for (const placement of placements.slice(0, Math.min(players.length, 12))) {
+      const snake = players.find((candidate) => candidate.id === placement.playerId);
+      if (!snake) {
+        return { payload: null, reason: `Missing live state for ${placement.playerId}.` };
+      }
+
+      const witness = deathWitnesses?.[placement.playerId];
+      const deathType = snake.alive
+        ? 0n
+        : witness?.deathMode === "boundary"
+          ? 1n
+          : witness?.deathMode === "collision"
+            ? 2n
+            : snake.segments[0] && Math.hypot(snake.segments[0].x, snake.segments[0].y) > matchConfig.finalSafeRadius
+              ? 1n
+              : 2n;
+
+      slots.push({
+        mass: BigInt(Math.max(0, Math.round(placement.mass))),
+        survived_ms: BigInt(Math.max(0, Math.round(placement.survivedMs))),
+        tiebreak_key: playerTieBreakKey(placement.playerId),
+        alive: snake.alive ? 1n : 0n,
+        death_type: deathType
+      });
+    }
+
+    while (slots.length < 12) {
+      slots.push({
+        mass: 0n,
+        survived_ms: 0n,
+        tiebreak_key: 0n,
+        alive: 0n,
+        death_type: 0n
+      });
+    }
+
+    return {
+        payload: {
+          match_id: matchIdField,
+          player_count: playerCountField,
+        duration_ms: BigInt(Math.max(1, Math.round(matchConfig.durationMs))),
+        initial_safe_radius: BigInt(Math.max(0, Math.round(matchConfig.initialSafeRadius))),
+        final_safe_radius: BigInt(Math.max(0, Math.round(matchConfig.finalSafeRadius))),
+        collision_radius: BigInt(Math.max(1, Math.round(matchConfig.collisionRadius))),
+        slots
+      },
+      reason: null as string | null
+    };
+  }, [deathWitnesses, matchConfig, matchEnded, matchIdField, placements, playerCountField, players]);
 
   const winnerAddresses = useMemo(
     () => deriveWinnerAddresses(placements, players, joinedPlayerAddresses),
@@ -146,7 +294,7 @@ export function ZkProofPanel({
     mode === "stake" &&
     Boolean(matchId && /^\d+$/.test(matchId) && escrowAddress && walletProvider && winnerAddresses);
 
-  const proofsReady = Number(Boolean(proofCacheRef.current.ranking)) + Number(Boolean(proofCacheRef.current.settlement));
+  const proofsReady = Object.values(proofCacheRef.current).filter(Boolean).length;
   const headerTone =
     busy !== null ? "busy" : runs.settlement.settledOnChain ? "complete" : proofsReady > 0 ? "ready" : "idle";
   const headerLabel =
@@ -157,6 +305,24 @@ export function ZkProofPanel({
         : proofsReady > 0
           ? `${proofsReady} ready`
           : "idle";
+
+  useEffect(() => {
+    setRuns((current) =>
+      syncIdleAvailability(current, proofCacheRef.current, {
+        ranking: { enabled: true },
+        settlement: { enabled: Boolean(settlementPayload), unavailableMessage: "Stake mode required." },
+        rng_commitment: {
+          enabled: Boolean(rngPayload),
+          unavailableMessage: "Match seed and config required."
+        },
+        arena_schedule: { enabled: Boolean(arenaPayload), unavailableMessage: "Match config required." },
+        elimination: {
+          enabled: Boolean(eliminationSetup.payload),
+          unavailableMessage: eliminationSetup.reason ?? "Death witnesses and full placement data required."
+        }
+      })
+    );
+  }, [arenaPayload, eliminationSetup.payload, eliminationSetup.reason, rngPayload, settlementPayload]);
 
   function patchRun(circuitName: SupportedCircuitName, patch: Partial<ProofRunState>) {
     setRuns((current) => ({
@@ -184,27 +350,52 @@ export function ZkProofPanel({
     });
 
     try {
-      const proof =
-        circuitName === "ranking"
-          ? await generateRankingProof({
-              first_mass: topThreeMasses[0] ?? 0n,
-              second_mass: topThreeMasses[1] ?? 0n,
-              third_mass: topThreeMasses[2] ?? 0n
-            })
-          : await generateSettlementProof(
-              settlementPayload ?? {
-                total_pool: 0n,
-                platform_fee: 0n,
-                first: 0n,
-                second: 0n,
-                third: 0n
-              }
-            );
+      let proof: ZKProof;
+      switch (circuitName) {
+        case "ranking":
+          proof = await generateRankingProof(rankingPayload);
+          break;
+        case "settlement":
+          proof = await generateSettlementProof(
+            settlementPayload ?? {
+              match_id: matchIdField,
+              total_pool: 0n,
+              platform_fee: 0n,
+              first_bps: BigInt(SETTLEMENT_SPLIT_BPS[0]),
+              second_bps: BigInt(SETTLEMENT_SPLIT_BPS[1]),
+              third_bps: BigInt(SETTLEMENT_SPLIT_BPS[2]),
+              first: 0n,
+              second: 0n,
+              third: 0n
+            }
+          );
+          break;
+        case "rng_commitment":
+          if (!rngPayload) {
+            throw new Error("Match seed or config is unavailable for RNG commitment generation.");
+          }
+          proof = await generateRngCommitmentProof(rngPayload);
+          break;
+        case "arena_schedule":
+          if (!arenaPayload) {
+            throw new Error("Match config is unavailable for arena schedule generation.");
+          }
+          proof = await generateArenaScheduleProof(arenaPayload);
+          break;
+        case "elimination":
+          if (!eliminationSetup.payload) {
+            throw new Error(eliminationSetup.reason ?? "Elimination witness data is unavailable.");
+          }
+          proof = await generateEliminationProof(eliminationSetup.payload);
+          break;
+        default:
+          throw new Error(`Unsupported circuit ${circuitName}.`);
+      }
 
       proofCacheRef.current[circuitName] = proof;
       patchRun(circuitName, {
         stage: "ready",
-        message: `${circuitName === "ranking" ? "Ranking" : "Settlement"} proof ready.`,
+        message: `${formatCircuitLabel(circuitName)} proof ready.`,
         proofBytes: proof.proof.byteLength,
         updatedAt: new Date().toISOString()
       });
@@ -483,8 +674,65 @@ export function ZkProofPanel({
         <div className="zk-panel__body">
           <CircuitProofCard
             busy={busy}
+            circuitName="rng_commitment"
+            description={
+              rngPayload
+                ? `${Number(rngPayload.player_count)} players · ${Number(rngPayload.initial_food_count)} initial food`
+                : "Match seed and config required."
+            }
+            disabledReason={!rngPayload ? "Match seed and config required." : undefined}
+            onGenerate={handleGenerate}
+            onRefresh={handleRefreshStatus}
+            onSubmitZkVerify={handleSubmitZkVerify}
+            onVerifyLocal={handleLocalVerify}
+            onVerifyOnChain={handleVerifyOnChain}
+            run={runs.rng_commitment}
+            showOnChain={mode === "stake" && Boolean(walletProvider)}
+            title="RNG commitment"
+          />
+
+          <CircuitProofCard
+            busy={busy}
+            circuitName="arena_schedule"
+            description={
+              arenaPayload
+                ? `Safe radius ${arenaPayload.current_safe_radius.toString()} / ${arenaPayload.initial_safe_radius.toString()}`
+                : "Match config required."
+            }
+            disabledReason={!arenaPayload ? "Match config required." : undefined}
+            onGenerate={handleGenerate}
+            onRefresh={handleRefreshStatus}
+            onSubmitZkVerify={handleSubmitZkVerify}
+            onVerifyLocal={handleLocalVerify}
+            onVerifyOnChain={handleVerifyOnChain}
+            run={runs.arena_schedule}
+            showOnChain={mode === "stake" && Boolean(walletProvider)}
+            title="Arena schedule"
+          />
+
+          <CircuitProofCard
+            busy={busy}
+            circuitName="elimination"
+            description={
+              eliminationSetup.payload
+                ? `${playerCountField.toString()} snakes · elimination summary committed`
+                : "Final placement data required."
+            }
+            disabledReason={eliminationSetup.reason ?? undefined}
+            onGenerate={handleGenerate}
+            onRefresh={handleRefreshStatus}
+            onSubmitZkVerify={handleSubmitZkVerify}
+            onVerifyLocal={handleLocalVerify}
+            onVerifyOnChain={handleVerifyOnChain}
+            run={runs.elimination}
+            showOnChain={mode === "stake" && Boolean(walletProvider)}
+            title="Elimination"
+          />
+
+          <CircuitProofCard
+            busy={busy}
             circuitName="ranking"
-            description={`Masses ${topThreeMasses.map((value) => value.toString()).join(" / ")}`}
+            description={`Masses ${topThreeMasses.map((value) => value.toString()).join(" / ")} · match ${matchIdField.toString()}`}
             onGenerate={handleGenerate}
             onRefresh={handleRefreshStatus}
             onSubmitZkVerify={handleSubmitZkVerify}
@@ -675,9 +923,26 @@ function CircuitProofCard({
 function createInitialRun(circuitName: SupportedCircuitName, enabled: boolean): ProofRunState {
   return {
     stage: "idle",
-    message: enabled ? `Ready to generate the ${circuitName} proof.` : "Stake mode required.",
+    message: enabled ? `Ready to generate the ${formatCircuitLabel(circuitName)} proof.` : "Required match data unavailable.",
     proofBytes: undefined
   };
+}
+
+function formatCircuitLabel(circuitName: SupportedCircuitName) {
+  switch (circuitName) {
+    case "ranking":
+      return "Ranking";
+    case "settlement":
+      return "Settlement";
+    case "rng_commitment":
+      return "RNG commitment";
+    case "arena_schedule":
+      return "Arena schedule";
+    case "elimination":
+      return "Elimination";
+    default:
+      return circuitName;
+  }
 }
 
 function resolveStageFromKurier(status: KurierVerificationStatus["status"]): ProofStage {
@@ -722,6 +987,66 @@ function truncateMiddle(value: string, start: number, end: number) {
 
   return `${value.slice(0, start)}...${value.slice(-end)}`;
 }
+
+function computeProofSafeRadius(elapsedMs: number, config: MatchConfig) {
+  const durationMs = Math.max(1, Math.round(config.durationMs));
+  const boundedElapsedMs = Math.max(0, Math.min(Math.round(elapsedMs), durationMs));
+  const initialSafeRadius = Math.max(0, Math.round(config.initialSafeRadius));
+  const finalSafeRadius = Math.max(0, Math.round(config.finalSafeRadius));
+  const radiusDelta = Math.max(0, initialSafeRadius - finalSafeRadius);
+  const roundedDelta = Math.floor((radiusDelta * boundedElapsedMs + durationMs / 2) / durationMs);
+  return initialSafeRadius - roundedDelta;
+}
+
+function fieldFromString(value: string): bigint {
+  const low = fnv1a64(value, FNV64_OFFSET_BASIS);
+  const high = fnv1a64(`${value}#seed`, FNV64_OFFSET_BASIS_ALT);
+  return (high << 64n) | low;
+}
+
+function syncIdleAvailability(
+  current: Record<SupportedCircuitName, ProofRunState>,
+  proofCache: Partial<Record<SupportedCircuitName, ZKProof>>,
+  availability: Record<SupportedCircuitName, { enabled: boolean; unavailableMessage?: string }>
+) {
+  let changed = false;
+  const next = { ...current };
+
+  for (const circuitName of Object.keys(availability) as SupportedCircuitName[]) {
+    const run = current[circuitName];
+    if (run.stage !== "idle" || proofCache[circuitName]) {
+      continue;
+    }
+
+    const details = availability[circuitName];
+    const message = details.enabled
+      ? `Ready to generate the ${formatCircuitLabel(circuitName)} proof.`
+              : details.unavailableMessage ?? "Required match data unavailable.";
+
+    if (run.message === message) {
+      continue;
+    }
+
+    next[circuitName] = {
+      ...run,
+      message
+    };
+    changed = true;
+  }
+
+  return changed ? next : current;
+}
+
+function fnv1a64(value: string, offsetBasis: bigint): bigint {
+  let hash = offsetBasis;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= BigInt(value.charCodeAt(index));
+    hash = BigInt.asUintN(64, hash * FNV64_PRIME);
+  }
+
+  return hash;
+}
+
 
 function formatEth(value: bigint) {
   const [whole, fraction = ""] = formatEther(value).split(".");

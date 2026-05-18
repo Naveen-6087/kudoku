@@ -99,6 +99,9 @@ export const DEFAULT_MATCH_CONFIG: MatchConfig = {
 
 const FOOD_MAGNET_PADDING = 110;
 const FOOD_MAGNET_MAX_PULL = 0.58;
+const FNV64_PRIME = 0x100000001b3n;
+const FNV64_OFFSET_BASIS = 0xcbf29ce484222325n;
+const FNV64_OFFSET_BASIS_ALT = 0x84222325cbf29cen;
 
 const PLAYER_COUNT_TUNING: Record<number, Partial<MatchConfig>> = {
   3: {
@@ -263,12 +266,26 @@ export function rankSnakes(state: MatchState): Placement[] {
   );
 }
 
+export function playerTieBreakKey(playerId: string): bigint {
+  const normalized = playerId.trim().toLowerCase();
+  const low = fnv1a64(normalized, FNV64_OFFSET_BASIS);
+  const high = fnv1a64(`${normalized}#kudoku`, FNV64_OFFSET_BASIS_ALT);
+  return (high << 64n) | low;
+}
+
 export function orderPlacements(placements: readonly Placement[]): Placement[] {
   return [...placements]
     .sort((a, b) => {
       if (b.mass !== a.mass) return b.mass - a.mass;
       if (b.survivedMs !== a.survivedMs) return b.survivedMs - a.survivedMs;
-      return a.playerId.localeCompare(b.playerId);
+
+      const leftKey = playerTieBreakKey(a.playerId);
+      const rightKey = playerTieBreakKey(b.playerId);
+      if (leftKey === rightKey) {
+        return a.playerId.localeCompare(b.playerId);
+      }
+
+      return leftKey < rightKey ? -1 : 1;
     })
     .map((placement, index) => ({ ...placement, rank: index + 1 }));
 }
@@ -500,6 +517,16 @@ function createRng(seed: string): () => number {
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4_294_967_296;
   };
+}
+
+function fnv1a64(value: string, offsetBasis: bigint): bigint {
+  let hash = offsetBasis;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= BigInt(value.charCodeAt(index));
+    hash = BigInt.asUintN(64, hash * FNV64_PRIME);
+  }
+
+  return hash;
 }
 
 function normalizeAngle(angle: number): number {

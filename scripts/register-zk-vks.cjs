@@ -5,7 +5,7 @@ const repoRoot = path.resolve(__dirname, "..");
 const envPath = path.join(repoRoot, "frontend", ".env.local");
 const hexDir = path.join(repoRoot, "circuits", "target", "hex");
 const vkHashesPath = path.join(repoRoot, "frontend", "src", "lib", "zk", "vkHashes.json");
-const circuits = ["ranking", "settlement"];
+const circuits = ["ranking", "settlement", "rng_commitment", "arena_schedule", "elimination"];
 
 main().catch((error) => {
   console.error(error instanceof Error ? error.message : error);

@@ -58,6 +58,9 @@ PY
 
 RANKING_ADDRESS="$(deploy_verifier "src/verifiers/RankingVerifier.sol" "ranking-verifier" | tail -n 1)"
 SETTLEMENT_ADDRESS="$(deploy_verifier "src/verifiers/SettlementVerifier.sol" "settlement-verifier" | tail -n 1)"
+RNG_COMMITMENT_ADDRESS="$(deploy_verifier "src/verifiers/RngCommitmentVerifier.sol" "rng-commitment-verifier" | tail -n 1)"
+ARENA_SCHEDULE_ADDRESS="$(deploy_verifier "src/verifiers/ArenaScheduleVerifier.sol" "arena-schedule-verifier" | tail -n 1)"
+ELIMINATION_ADDRESS="$(deploy_verifier "src/verifiers/EliminationVerifier.sol" "elimination-verifier" | tail -n 1)"
 
 python3 - <<PY
 import json
@@ -67,6 +70,9 @@ payload = {
     "chainId": 84532,
     "rankingVerifier": "${RANKING_ADDRESS}",
     "settlementVerifier": "${SETTLEMENT_ADDRESS}",
+    "rngCommitmentVerifier": "${RNG_COMMITMENT_ADDRESS}",
+    "arenaScheduleVerifier": "${ARENA_SCHEDULE_ADDRESS}",
+    "eliminationVerifier": "${ELIMINATION_ADDRESS}",
 }
 Path(r"${DEPLOYMENTS_DIR}").joinpath("base-sepolia-kudoku-verifiers.json").write_text(
     json.dumps(payload, indent=2) + "\n",
@@ -76,5 +82,11 @@ PY
 
 echo "Ranking verifier: ${RANKING_ADDRESS}"
 echo "Settlement verifier: ${SETTLEMENT_ADDRESS}"
+echo "RNG commitment verifier: ${RNG_COMMITMENT_ADDRESS}"
+echo "Arena schedule verifier: ${ARENA_SCHEDULE_ADDRESS}"
+echo "Elimination verifier: ${ELIMINATION_ADDRESS}"
 echo "Set RANKING_VERIFIER_ADDRESS=${RANKING_ADDRESS}"
 echo "Set SETTLEMENT_VERIFIER_ADDRESS=${SETTLEMENT_ADDRESS}"
+echo "Set RNG_COMMITMENT_VERIFIER_ADDRESS=${RNG_COMMITMENT_ADDRESS}"
+echo "Set ARENA_SCHEDULE_VERIFIER_ADDRESS=${ARENA_SCHEDULE_ADDRESS}"
+echo "Set ELIMINATION_VERIFIER_ADDRESS=${ELIMINATION_ADDRESS}"

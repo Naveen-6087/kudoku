@@ -12,7 +12,10 @@ const vkHashesPath = path.join(repoRoot, "frontend", "src", "lib", "zk", "vkHash
 
 const circuits = [
   { name: "ranking", verifierName: "RankingVerifier" },
-  { name: "settlement", verifierName: "SettlementVerifier" }
+  { name: "settlement", verifierName: "SettlementVerifier" },
+  { name: "rng_commitment", verifierName: "RngCommitmentVerifier" },
+  { name: "arena_schedule", verifierName: "ArenaScheduleVerifier" },
+  { name: "elimination", verifierName: "EliminationVerifier" }
 ];
 
 main();
@@ -21,6 +24,7 @@ function main() {
   ensureDir(hexDir);
   ensureDir(frontendCircuitsDir);
   ensureDir(verifierDir);
+  removeStaleArtifacts();
 
   runWsl(`cd '${toWslPath(circuitsDir)}' && ~/.nargo/bin/nargo compile --workspace`);
 
@@ -30,6 +34,21 @@ function main() {
 
   ensureVkHashShape();
   console.log("ZK artifacts generated and synced.");
+}
+
+function removeStaleArtifacts() {
+  const stalePaths = [
+    path.join(targetDir, "gameplay_v1.json"),
+    path.join(targetDir, "gameplay_v1.vk"),
+    path.join(hexDir, "gameplay_v1_vk.hex"),
+    path.join(frontendCircuitsDir, "gameplay_v1.json"),
+    path.join(frontendCircuitsDir, "gameplay_v1.vk"),
+    path.join(verifierDir, "GameplayV1Verifier.sol")
+  ];
+
+  for (const stalePath of stalePaths) {
+    fs.rmSync(stalePath, { force: true, recursive: true });
+  }
 }
 
 function buildCircuitArtifacts(circuit) {
@@ -73,7 +92,10 @@ function ensureVkHashShape() {
 
   const next = {
     ranking: typeof current.ranking === "string" ? current.ranking : "",
-    settlement: typeof current.settlement === "string" ? current.settlement : ""
+    settlement: typeof current.settlement === "string" ? current.settlement : "",
+    rng_commitment: typeof current.rng_commitment === "string" ? current.rng_commitment : "",
+    arena_schedule: typeof current.arena_schedule === "string" ? current.arena_schedule : "",
+    elimination: typeof current.elimination === "string" ? current.elimination : ""
   };
 
   fs.writeFileSync(vkHashesPath, `${JSON.stringify(next, null, 2)}\n`);

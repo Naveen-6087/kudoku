@@ -377,12 +377,13 @@ export function StakeRoom({ matchId, stakeEth, maxPlayers, durationSeconds, room
 
   if (!loading && room?.status === "InProgress" && joined && liveRenderState) {
     return (
-      <GameShell
-        durationSeconds={durationSeconds}
-        escrowAddress={contractAddress}
-        externalRenderState={liveRenderState}
-        externalStatusMessage={liveStatus}
-        joinedPlayerAddresses={room.players as `0x${string}`[]}
+        <GameShell
+          durationSeconds={durationSeconds}
+          escrowAddress={contractAddress}
+          externalMatchSeed={liveRoom?.seed ?? ""}
+          externalRenderState={liveRenderState}
+          externalStatusMessage={liveStatus}
+          joinedPlayerAddresses={room.players as `0x${string}`[]}
         localPlayerId={normalizedLocalPlayerId}
         matchId={matchId}
         maxPlayers={room.maxPlayers}

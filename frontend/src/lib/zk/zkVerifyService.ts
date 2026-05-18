@@ -1,5 +1,5 @@
 import vkHashes from "./vkHashes.json";
-import { proofToHex } from "./proofService";
+import { normalizeFieldAsBytes32, proofToHex } from "./proofService";
 import type { ZKProof } from "./types";
 
 export type KurierJobStatus =
@@ -64,12 +64,7 @@ function zkError(message: string, error?: unknown) {
 }
 
 function formatPublicSignals(proof: ZKProof) {
-  return proof.publicInputs.map((input) => {
-    const stringValue = String(input);
-    return stringValue.startsWith("0x")
-      ? stringValue
-      : `0x${BigInt(stringValue).toString(16).padStart(64, "0")}`;
-  });
+  return proof.publicInputs.map((input) => normalizeFieldAsBytes32(input));
 }
 
 function isSuccessfulStatus(status: KurierJobStatus) {
