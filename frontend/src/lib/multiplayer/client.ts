@@ -9,6 +9,7 @@ interface JoinMatchRoomInput {
   durationSeconds: number;
   playerId: string;
   name: string;
+  skinId?: string;
   expectedPlayerIds: string[];
 }
 
@@ -22,6 +23,7 @@ export async function joinMatchRoom(input: JoinMatchRoomInput): Promise<Room> {
     durationSeconds: input.durationSeconds,
     playerId: normalizePlayerId(input.playerId),
     name: input.name,
+    skinId: input.skinId,
     expectedPlayerIds: input.expectedPlayerIds.map(normalizePlayerId)
   });
 }
@@ -123,7 +125,8 @@ function normalizePlayers(value: unknown): SnakeRoomSnapshot["players"] {
       {
         id: String(player.id ?? key),
         name: String(player.name ?? "Player"),
-        connected: Boolean(player.connected)
+        connected: Boolean(player.connected),
+        skinId: typeof player.skinId === "string" ? player.skinId : undefined
       }
     ])
   );

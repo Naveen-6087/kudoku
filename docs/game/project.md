@@ -2,7 +2,7 @@
 # The game is called kudoku
 ## Purpose
 
-This document defines the complete product, gameplay, trust model, architecture, cryptographic assumptions, multiplayer systems, TEE integration, settlement flow, and implementation roadmap for a real-money multiplayer snake battle royale game.
+This document defines the complete product, gameplay, trust model, architecture, cryptographic assumptions, multiplayer systems, authoritative-server design, settlement flow, and implementation roadmap for a real-money multiplayer snake battle royale game.
 
 This specification is designed for:
 
@@ -32,7 +32,7 @@ Build a competitive multiplayer snake battle royale inspired by Slither.io with:
 - real-money buy-ins
 - shrinking arena
 - deterministic fair RNG
-- TEE-protected authoritative game logic
+- server-side authoritative game logic
 - cryptographic settlement verification
 - on-chain payouts
 
@@ -448,33 +448,29 @@ Blockchain MUST NOT:
 
 ---
 
-## TEE Layer
+## Authoritative Server Layer
 
 Recommended:
 
-urlPhala Network Docshttps://docs.phala.com/
+Deploy the realtime match server on an authoritative backend you control.
 
-Phala TEE acts as:
+The authoritative server acts as the:
 
 **Authoritative Game Logic Layer**.
 
 The game logic should run inside:
 
-TEE-protected confidential compute.
+server-side authoritative compute.
 
 ---
 
-# TEE Trust Model
+# Realtime Trust Model
 
 Game logic executes inside:
 
-Phala confidential execution.
+the authoritative multiplayer backend.
 
-This replaces:
-
-Traditional trusted game server.
-
-The TEE is responsible for:
+The authoritative backend is responsible for:
 
 - movement validation
 - collision detection
@@ -489,7 +485,7 @@ Reason:
 
 Movement cheating is the largest attack surface.
 
-TEE removes need for expensive realtime ZK proofs.
+The authoritative backend removes the need for expensive realtime ZK proofs.
 
 This architecture minimizes trust while preserving low latency.
 
@@ -501,7 +497,7 @@ Movement legality will NOT be zk-proven in MVP.
 
 Instead:
 
-TEE authoritative simulation enforces:
+Authoritative server simulation enforces:
 
 - speed limits
 - valid movement
@@ -523,7 +519,7 @@ Never:
 position
 ```
 
-The TEE computes:
+The authoritative backend computes:
 
 Official game state.
 
@@ -533,7 +529,7 @@ Official game state.
 
 Recommended:
 
-**TEE deterministic commit-reveal RNG**.
+**Authoritative deterministic commit-reveal RNG**.
 
 No external oracle required.
 
@@ -551,7 +547,7 @@ Low latency preferred.
 
 Before match:
 
-TEE generates:
+The authoritative backend generates:
 
 ```txt
 seed
@@ -577,7 +573,7 @@ food = PRNG(seed)
 
 At end of match:
 
-TEE reveals:
+The authoritative backend reveals:
 
 ```txt
 seed
@@ -665,7 +661,7 @@ Do NOT zk-prove:
 
 Reason:
 
-TEE already secures realtime gameplay.
+The authoritative backend already secures realtime gameplay.
 
 ---
 
@@ -697,7 +693,7 @@ All players joined.
 
 ## Phase 3 — RNG Commitment
 
-TEE generates:
+The authoritative backend generates:
 
 ```txt
 seed
@@ -721,7 +717,7 @@ Players send:
 movement input
 ```
 
-TEE authoritative logic computes:
+The authoritative backend computes:
 
 - movement
 - collision
@@ -820,7 +816,7 @@ Threats:
 
 Protection:
 
-TEE authoritative execution.
+Authoritative server execution.
 
 The client never owns truth.
 
@@ -835,7 +831,7 @@ The AI agent MUST:
 3. Never make client authoritative.
 4. Keep gameplay fast.
 5. Avoid overengineering ZK.
-6. Use TEE for realtime trust.
+6. Use the authoritative backend for realtime trust.
 7. Use ZK only for settlement-critical logic.
 8. Maintain modular architecture.
 9. Optimize for low latency.
@@ -846,7 +842,7 @@ Implementation order:
 1. Pure gameplay
 2. Multiplayer
 3. Betting
-4. TEE integration
+4. Server deployment
 5. RNG
 6. ZK settlement
 7. Replay system
@@ -866,7 +862,7 @@ To build a genuinely fun competitive game with minimized trust assumptions.
 
 Realtime gameplay trust comes from:
 
-TEE execution.
+authoritative backend execution.
 
 Economic trust comes from:
 
@@ -877,4 +873,3 @@ The experience should feel:
 Like a highly polished competitive snake battle royale.
 
 The cryptography should remain invisible beneath the gameplay.
-

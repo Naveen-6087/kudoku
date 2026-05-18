@@ -19,16 +19,11 @@ const privyConfig: PrivyClientConfig = {
     loginMessage: "Connect with a wallet, WalletConnect QR, or social login to open a paid room.",
     showWalletLoginFirst: false,
     walletChainType: "ethereum-only",
-    walletList: ["metamask", "coinbase_wallet", "rainbow", "wallet_connect", "detected_ethereum_wallets"]
+    walletList: ["metamask", "rainbow", "wallet_connect", "detected_ethereum_wallets"]
   },
   loginMethods: ["email", "google", "discord", "github", "wallet"],
   defaultChain: baseSepolia,
-  supportedChains: [baseSepolia],
-  embeddedWallets: {
-    ethereum: {
-      createOnLogin: "users-without-wallets"
-    }
-  }
+  supportedChains: [baseSepolia]
 };
 
 export function AppProviders({ children }: { children: ReactNode }) {

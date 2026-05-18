@@ -592,11 +592,6 @@ function CircuitProofCard({
           ))}
         </div>
       ) : null}
-      {run.txExplorerUrl ? (
-        <a className="zk-proof-card__tx-link" href={run.txExplorerUrl} rel="noreferrer" target="_blank">
-          {run.txExplorerUrl}
-        </a>
-      ) : null}
 
       <div className="zk-proof-card__meta">
         <span>{formatMetaStatus("Local", run.localVerification)}</span>
@@ -661,8 +656,15 @@ function CircuitProofCard({
           </button>
         ) : null}
         {run.txExplorerUrl ? (
-          <a className="button" href={run.txExplorerUrl} rel="noreferrer" target="_blank">
-            Open
+          <a
+            aria-label="Open explorer"
+            className="button zk-proof-card__icon-button"
+            href={run.txExplorerUrl}
+            rel="noreferrer"
+            target="_blank"
+            title="Open in explorer"
+          >
+            ↗
           </a>
         ) : null}
       </div>

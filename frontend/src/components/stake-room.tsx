@@ -5,7 +5,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePrivy, useWallets, type ConnectedWallet, type WalletListEntry } from "@privy-io/react-auth";
 import type { Room } from "colyseus.js";
 import { GameShell, type GameParticipant } from "./game-shell";
-import { readPlayerProfile } from "@/lib/player-profile";
+import {
+  getSnakeSkin,
+  readPlayerProfile,
+  savePlayerProfile,
+  SNAKE_SKINS,
+  type SnakeSkinId
+} from "@/lib/player-profile";
 import {
   ESCROW_READY_COUNTDOWN_SECONDS,
   KUDOKU_CHAIN_ID,
@@ -16,6 +22,7 @@ import {
   getWalletSession,
   getExplorerTransactionUrl,
   hashRoomCode,
+  isRpcRateLimitError,
   joinEscrowMatch,
   normalizeEscrowAddress,
   readEscrowMatch,
@@ -28,7 +35,6 @@ import { joinMatchRoom, toSnakeRoomSnapshot } from "@/lib/multiplayer/client";
 
 const CONNECT_WALLET_LIST: WalletListEntry[] = [
   "metamask",
-  "coinbase_wallet",
   "wallet_connect",
   "detected_ethereum_wallets",
   "rainbow"
@@ -74,7 +80,7 @@ export function StakeRoom({ matchId, stakeEth, maxPlayers, durationSeconds, room
       null,
     [wallets]
   );
-  const profile = useMemo(() => readPlayerProfile(), []);
+  const [profile, setProfile] = useState(() => readPlayerProfile());
 
   useEffect(() => {
     setHydrated(true);
@@ -118,7 +124,9 @@ export function StakeRoom({ matchId, stakeEth, maxPlayers, durationSeconds, room
         }
       } catch (error) {
         if (!cancelled) {
-          setStatus(readErrorMessage(error, "Unable to load that room."));
+          if (!isRpcRateLimitError(error)) {
+            setStatus(readErrorMessage(error, "Unable to load that room."));
+          }
         }
       } finally {
         if (!cancelled) {
@@ -208,6 +216,7 @@ export function StakeRoom({ matchId, stakeEth, maxPlayers, durationSeconds, room
           durationSeconds,
           playerId: currentWallet.address,
           name: playerName,
+          skinId: profile.skinId,
           expectedPlayerIds
         });
 
@@ -231,7 +240,8 @@ export function StakeRoom({ matchId, stakeEth, maxPlayers, durationSeconds, room
         nextConnection.send("sync-roster", {
           expectedPlayerIds,
           maxPlayers: roomMaxPlayers,
-          name: playerName
+          name: playerName,
+          skinId: profile.skinId
         });
       } catch (error) {
         if (!cancelled) {
@@ -245,7 +255,7 @@ export function StakeRoom({ matchId, stakeEth, maxPlayers, durationSeconds, room
     return () => {
       cancelled = true;
     };
-  }, [durationSeconds, expectedPlayerIds, joined, matchId, profile.name, roomMaxPlayers, roomStatus, wallet]);
+  }, [durationSeconds, expectedPlayerIds, joined, matchId, profile.name, profile.skinId, roomMaxPlayers, roomStatus, wallet]);
 
   useEffect(() => {
     if (!roomConnectionRef.current) {
@@ -255,9 +265,10 @@ export function StakeRoom({ matchId, stakeEth, maxPlayers, durationSeconds, room
     roomConnectionRef.current.send("sync-roster", {
       expectedPlayerIds,
       maxPlayers: roomMaxPlayers,
-      name: wallet ? profile.name.trim() || shortAddress(wallet.address) : profile.name
+      name: wallet ? profile.name.trim() || shortAddress(wallet.address) : profile.name,
+      skinId: profile.skinId
     });
-  }, [expectedPlayerIds, profile.name, roomMaxPlayers, wallet]);
+  }, [expectedPlayerIds, profile.name, profile.skinId, roomMaxPlayers, wallet]);
 
   useEffect(() => {
     if (
@@ -308,12 +319,13 @@ export function StakeRoom({ matchId, stakeEth, maxPlayers, durationSeconds, room
       const playerId = normalizePlayerId(playerAddress);
       const presence = livePlayers[playerId];
       const isYou = wallet && playerAddress.toLowerCase() === wallet.address.toLowerCase();
-      return {
-        id: playerId,
-        name: isYou ? profile.name : presence?.name ?? `Player ${index + 1}`
-      };
-    });
-  }, [liveRoom?.players, profile.name, room?.players, wallet]);
+        return {
+          id: playerId,
+          name: isYou ? profile.name : presence?.name ?? `Player ${index + 1}`,
+          skinId: isYou ? profile.skinId : normalizeSkinId(presence?.skinId)
+        };
+      });
+  }, [liveRoom?.players, profile.name, profile.skinId, room?.players, wallet]);
 
   const liveRenderState = useMemo(() => {
     if (!liveRoom) {
@@ -435,7 +447,30 @@ export function StakeRoom({ matchId, stakeEth, maxPlayers, durationSeconds, room
                 </div>
                 <p>{roomCodeInput ? "Only players with this code can sign the join transaction." : "Enter the shared code to unlock private joining."}</p>
               </div>
-            ) : null}
+             ) : null}
+
+            <div className="paid-room__skin-picker">
+              <label>Snake Color</label>
+              <div className="paid-room__skin-grid">
+                {SNAKE_SKINS.map((skin) => {
+                  const active = profile.skinId === skin.id;
+                  return (
+                    <button
+                      className={active ? "is-active" : ""}
+                      key={skin.id}
+                      onClick={() => setProfile(savePlayerProfile({ ...profile, skinId: skin.id as SnakeSkinId }))}
+                      type="button"
+                    >
+                      <span className="skin-swatch skin-swatch--small" style={{ background: skin.body }} />
+                      <span>{skin.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="paid-room__subtle">
+                {`Current snake: ${getSnakeSkin(profile.skinId).label}. This syncs to the live room before the match starts.`}
+              </p>
+            </div>
 
             <div className="paid-room__actions">
               <button className="paid-lobby__primary" disabled={!hydrated || !ready || busy !== null} onClick={handleConnect} type="button">
@@ -483,7 +518,11 @@ export function StakeRoom({ matchId, stakeEth, maxPlayers, durationSeconds, room
                   <div className="paid-room__player" key={playerAddress}>
                     <span>{">"}</span>
                     <span>{String(index + 1).padStart(2, "0")}.</span>
-                    <span>
+                    <span className="paid-room__player-name">
+                      <span
+                        className="skin-swatch skin-swatch--small"
+                        style={{ background: getSnakeSkin(normalizeSkinId(isYou ? profile.skinId : presence?.skinId)).body }}
+                      />
                       {isYou ? `${profile.name} (you)` : presence?.name ?? shortAddress(playerAddress)}
                       {presence ? (presence.connected ? " - synced" : " - waiting") : ""}
                     </span>
@@ -690,4 +729,8 @@ async function copyToClipboard(value: string) {
 
 function normalizePlayerId(value: string) {
   return value.trim().toLowerCase();
+}
+
+function normalizeSkinId(value: unknown): SnakeSkinId {
+  return SNAKE_SKINS.find((skin) => skin.id === value)?.id ?? SNAKE_SKINS[0].id;
 }

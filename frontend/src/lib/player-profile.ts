@@ -161,6 +161,6 @@ function sanitizePlayerName(value: string): string {
   return trimmed || createRandomAlias();
 }
 
-function isSnakeSkinId(value: unknown): value is SnakeSkinId {
+export function isSnakeSkinId(value: unknown): value is SnakeSkinId {
   return typeof value === "string" && SNAKE_SKINS.some((skin) => skin.id === value);
 }

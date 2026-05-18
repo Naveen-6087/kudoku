@@ -75,6 +75,7 @@ export interface RoomPlayerPresence {
   id: string;
   name: string;
   connected: boolean;
+  skinId?: string;
 }
 
 export interface SnakeRoomSnapshot {

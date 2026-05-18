@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   createMatch,
   DEFAULT_MATCH_CONFIG,
+  matchConfigForPlayers,
   orderPlacements,
   safeRadiusAt,
   stepMatch,
@@ -16,6 +17,7 @@ import {
 import {
   getBotSkinId,
   getSnakeSkin,
+  isSnakeSkinId,
   readPlayerProfile,
   type PlayerProfile,
   type SnakeSkinId
@@ -29,6 +31,7 @@ type GameMode = "practice" | "stake";
 export interface GameParticipant {
   id: string;
   name: string;
+  skinId?: SnakeSkinId;
 }
 
 interface GameShellProps {
@@ -80,7 +83,9 @@ export function GameShell({
   const [playerProfile, setPlayerProfile] = useState<PlayerProfile | null>(null);
   const [uiState, setUiState] = useState<ArenaRenderState>(createEmptyRenderState());
   const [runNonce, setRunNonce] = useState(0);
-  const [statusMessage, setStatusMessage] = useState(mode === "practice" ? "Boost with left click or Space." : "Room synced from escrow.");
+  const [statusMessage, setStatusMessage] = useState(
+    mode === "practice" ? "Use the mouse to steer. Hold click or Space to boost." : "Room synced. Steer with the mouse and hold click or Space to boost."
+  );
 
   const renderStateRef = useRef<ArenaRenderState>(createEmptyRenderState());
   const currentPlayerIdRef = useRef("");
@@ -122,16 +127,19 @@ export function GameShell({
 
     currentPlayerIdRef.current = resolvedLocalPlayerId;
     snakeSkinIdsRef.current = buildSnakeSkinMap(playerProfile, nextParticipants, resolvedLocalPlayerId);
-    const nextMatch = createMatch(nextParticipants, `${mode}:${matchId ?? "local"}:${runNonce}`, {
-      durationMs: resolvedDuration * 1_000,
-      initialFood: Math.min(DEFAULT_MATCH_CONFIG.initialFood, 220)
-    });
+    const nextMatch = createMatch(
+      nextParticipants,
+      `${mode}:${matchId ?? "local"}:${runNonce}`,
+      matchConfigForPlayers(resolvedMaxPlayers, {
+        durationMs: resolvedDuration * 1_000
+      })
+    );
 
     matchRef.current = nextMatch;
     renderStateRef.current = renderFromMatch(nextMatch);
     setUiState(renderStateRef.current);
     setStatusMessage(
-      mode === "practice" ? "Boost with left click or Space." : `Stake room ${matchId ?? "preview"} live.`
+        mode === "practice" ? "Use the mouse to steer. Hold click or Space to boost." : `Stake room ${matchId ?? "preview"} is live.`
     );
 
     const interval = window.setInterval(() => {
@@ -151,7 +159,7 @@ export function GameShell({
       }
 
       if (next.phase === "ended") {
-        setStatusMessage(mode === "practice" ? "Run finished." : "Match ended. Proofs and settlement are ready.");
+          setStatusMessage(mode === "practice" ? "Run finished." : "Match ended. Proofs and settlement are ready.");
       }
     }, 1000 / nextMatch.config.tickRate);
 
@@ -337,18 +345,23 @@ function buildParticipants(input: {
       name:
         participant.id === input.localPlayerId
           ? input.playerProfile.name
-          : sanitizeParticipantName(participant.name, participant.id)
+          : sanitizeParticipantName(participant.name, participant.id),
+      skinId:
+        participant.id === input.localPlayerId
+          ? input.playerProfile.skinId
+          : participant.skinId
     }));
   }
 
   return Array.from({ length: input.maxPlayers }, (_, index) => {
     if (index === 0) {
-      return { id: input.localPlayerId, name: input.playerProfile.name };
+      return { id: input.localPlayerId, name: input.playerProfile.name, skinId: input.playerProfile.skinId };
     }
 
     return {
       id: `bot-${index}`,
-      name: BOT_NAMES[(index - 1) % BOT_NAMES.length] ?? `Bot ${index}`
+      name: BOT_NAMES[(index - 1) % BOT_NAMES.length] ?? `Bot ${index}`,
+      skinId: getBotSkinId(index)
     };
   });
 }
@@ -359,7 +372,12 @@ function buildSnakeSkinMap(
   localPlayerId: string
 ): Record<string, SnakeSkinId> {
   return participants.reduce<Record<string, SnakeSkinId>>((result, participant, index) => {
-    result[participant.id] = participant.id === localPlayerId ? playerProfile.skinId : getBotSkinId(index);
+    result[participant.id] =
+      participant.id === localPlayerId
+        ? playerProfile.skinId
+        : isSnakeSkinId(participant.skinId)
+          ? participant.skinId
+          : getBotSkinId(index);
     return result;
   }, {});
 }

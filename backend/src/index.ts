@@ -5,11 +5,8 @@ import { SnakeRoom } from "./rooms/SnakeRoom.js";
 
 const host = process.env.HOST ?? "0.0.0.0";
 const port = Number(process.env.PORT ?? 2567);
-const appId = process.env.DSTACK_APP_ID ?? null;
-const gatewayDomain = process.env.DSTACK_GATEWAY_DOMAIN ?? null;
-const appDomain = process.env.DSTACK_APP_DOMAIN ?? null;
-const publicHttpUrl = resolvePublicHttpUrl(port);
-const publicWsUrl = resolvePublicWsUrl(port);
+const publicHttpUrl = resolvePublicHttpUrl();
+const publicWsUrl = resolvePublicWsUrl();
 
 const httpServer = createServer((request, response) => {
   if (request.url === "/healthz") {
@@ -28,16 +25,13 @@ const httpServer = createServer((request, response) => {
   if (request.url === "/" || request.url === "/metadata") {
     response.writeHead(200, { "content-type": "application/json" });
     response.end(
-      JSON.stringify({
-        room: "snake",
-        host,
-        port,
-        appId,
-        gatewayDomain,
-        appDomain,
-        publicHttpUrl,
-        publicWsUrl
-      })
+        JSON.stringify({
+          room: "snake",
+          host,
+          port,
+          publicHttpUrl,
+          publicWsUrl
+        })
     );
     return;
   }
@@ -73,34 +67,10 @@ httpServer.listen(port, host, () => {
   }
 });
 
-function resolvePublicHttpUrl(port: number): string | null {
-  if (process.env.PUBLIC_HTTP_URL) {
-    return process.env.PUBLIC_HTTP_URL;
-  }
-
-  if (!appId || !gatewayDomain) {
-    return null;
-  }
-
-  if (port === 80) {
-    return `https://${appDomain ?? `${appId}.${gatewayDomain}`}`;
-  }
-
-  return `https://${appId}-${port}.${gatewayDomain}`;
+function resolvePublicHttpUrl(): string | null {
+  return process.env.PUBLIC_HTTP_URL ?? null;
 }
 
-function resolvePublicWsUrl(port: number): string | null {
-  if (process.env.PUBLIC_WS_URL) {
-    return process.env.PUBLIC_WS_URL;
-  }
-
-  if (!appId || !gatewayDomain) {
-    return null;
-  }
-
-  if (port === 80) {
-    return `wss://${appDomain ?? `${appId}.${gatewayDomain}`}`;
-  }
-
-  return `wss://${appId}-${port}.${gatewayDomain}`;
+function resolvePublicWsUrl(): string | null {
+  return process.env.PUBLIC_WS_URL ?? null;
 }

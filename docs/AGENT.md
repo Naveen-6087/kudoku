@@ -30,7 +30,7 @@ This project is a **real-money multiplayer snake battle royale game** using:
 - Barretenberg
 - zkVerify
 - Base Sepolia
-- Phala TEE
+- Authoritative backend server
 
 The complete game specification exists separately.
 
@@ -643,12 +643,10 @@ Includes:
 
 ## Phase 4
 
-TEE integration.
+Server deployment.
 
-i have the phala mcp configured make sure to use it when needed
 Includes:
 
-- Phala execution
 - authoritative logic
 
 ---
@@ -754,4 +752,3 @@ Build incrementally.
 Test thoroughly.
 
 Commit frequently.
-

@@ -77,38 +77,102 @@ export interface MatchState {
 
 export const DEFAULT_MATCH_CONFIG: MatchConfig = {
   durationMs: 180_000,
-  tickRate: 20,
-  worldRadius: 2_400,
-  initialSafeRadius: 2_180,
-  finalSafeRadius: 430,
-  initialFood: 220,
-  snakeSpeed: 178,
-  initialBoostEnergy: 44,
-  maxBoostEnergy: 170,
-  boostEnergyGainPerFood: 7.5,
-  boostSpeedMultiplier: 2.1,
-  boostEnergyDrainPerSecond: 20,
-  boostRampPerSecond: 1.25,
-  boostDecayPerSecond: 4.2,
-  turnRateRadiansPerSecond: Math.PI * 2.4,
-  segmentSpacing: 10,
+  tickRate: 30,
+  worldRadius: 4_400,
+  initialSafeRadius: 3_900,
+  finalSafeRadius: 1_300,
+  initialFood: 420,
+  snakeSpeed: 146,
+  initialBoostEnergy: 0,
+  maxBoostEnergy: 160,
+  boostEnergyGainPerFood: 11,
+  boostSpeedMultiplier: 2.65,
+  boostEnergyDrainPerSecond: 24,
+  boostRampPerSecond: 3.8,
+  boostDecayPerSecond: 9.6,
+  turnRateRadiansPerSecond: Math.PI * 1.82,
+  segmentSpacing: 10.2,
   collisionRadius: 14,
-  foodRadius: 11,
-  arenaDamagePerSecond: 35
+  foodRadius: 9,
+  arenaDamagePerSecond: 120
 };
+
+const FOOD_MAGNET_PADDING = 110;
+const FOOD_MAGNET_MAX_PULL = 0.58;
+
+const PLAYER_COUNT_TUNING: Record<number, Partial<MatchConfig>> = {
+  3: {
+    worldRadius: 1_650,
+    initialSafeRadius: 1_180,
+    finalSafeRadius: 320,
+    initialFood: 120,
+    snakeSpeed: 156,
+    maxBoostEnergy: 132,
+    boostEnergyGainPerFood: 18,
+    boostSpeedMultiplier: 2.95,
+    boostEnergyDrainPerSecond: 18,
+    boostRampPerSecond: 4.1,
+    boostDecayPerSecond: 10.2,
+    turnRateRadiansPerSecond: Math.PI * 2.18,
+    arenaDamagePerSecond: 180
+  },
+  4: {
+    worldRadius: 2_150,
+    initialSafeRadius: 1_560,
+    finalSafeRadius: 400,
+    initialFood: 170,
+    snakeSpeed: 152,
+    maxBoostEnergy: 142,
+    boostEnergyGainPerFood: 16,
+    boostSpeedMultiplier: 2.88,
+    boostEnergyDrainPerSecond: 20,
+    boostRampPerSecond: 4,
+    turnRateRadiansPerSecond: Math.PI * 2.02,
+    arenaDamagePerSecond: 165
+  },
+  6: {
+    worldRadius: 3_050,
+    initialSafeRadius: 2_250,
+    finalSafeRadius: 620,
+    initialFood: 250,
+    snakeSpeed: 149,
+    maxBoostEnergy: 150,
+    boostEnergyGainPerFood: 13,
+    boostSpeedMultiplier: 2.76,
+    boostEnergyDrainPerSecond: 22,
+    boostRampPerSecond: 3.9,
+    turnRateRadiansPerSecond: Math.PI * 1.92,
+    arenaDamagePerSecond: 145
+  },
+  12: {
+    worldRadius: 4_400,
+    initialSafeRadius: 3_900,
+    finalSafeRadius: 1_300,
+    initialFood: 420
+  }
+};
+
+export function matchConfigForPlayers(playerCount: number, config: Partial<MatchConfig> = {}): MatchConfig {
+  const normalizedPlayerCount = [3, 4, 6, 12].includes(playerCount) ? playerCount : 4;
+  return {
+    ...DEFAULT_MATCH_CONFIG,
+    ...(PLAYER_COUNT_TUNING[normalizedPlayerCount] ?? PLAYER_COUNT_TUNING[4]),
+    ...config
+  };
+}
 
 export function createMatch(
   players: PlayerSpawn[],
   seed: string,
   config: Partial<MatchConfig> = {}
 ): MatchState {
-  const merged = { ...DEFAULT_MATCH_CONFIG, ...config };
+  const merged = matchConfigForPlayers(players.length, config);
   const rng = createRng(seed);
   const snakes: Record<string, Snake> = {};
 
   players.forEach((player, index) => {
     const spawnAngle = (Math.PI * 2 * index) / Math.max(players.length, 1);
-    const spawnRadius = merged.initialSafeRadius * 0.35;
+    const spawnRadius = Math.min(merged.initialSafeRadius * 0.22, 920);
     const head = {
       x: Math.cos(spawnAngle) * spawnRadius,
       y: Math.sin(spawnAngle) * spawnRadius
@@ -264,16 +328,23 @@ function moveSnake(snake: Snake, config: MatchConfig, dtSeconds: number): void {
 }
 
 function updateBoostState(snake: Snake, config: MatchConfig, dtSeconds: number, wantsBoost: boolean): void {
-  const hasFuel = snake.boostEnergy > 0;
-  const shouldBoost = wantsBoost && hasFuel;
-  const nextCharge = snake.boostCharge + (shouldBoost ? config.boostRampPerSecond : -config.boostDecayPerSecond) * dtSeconds;
-  snake.boostCharge = clamp(nextCharge, 0, 1);
+  const availableCharge = clamp(snake.boostEnergy / Math.max(config.maxBoostEnergy, 1), 0, 1);
+  const shouldBoost = wantsBoost && availableCharge > 0.03;
+  const targetCharge = shouldBoost ? availableCharge : 0;
+  const changeRate = shouldBoost ? config.boostRampPerSecond : config.boostDecayPerSecond;
+  const nextCharge =
+    snake.boostCharge + Math.sign(targetCharge - snake.boostCharge) * changeRate * dtSeconds;
+  snake.boostCharge = clamp(
+    Math.abs(targetCharge - snake.boostCharge) <= changeRate * dtSeconds ? targetCharge : nextCharge,
+    0,
+    1
+  );
 
   if (!shouldBoost || snake.boostCharge <= 0) {
     return;
   }
 
-  const drainMultiplier = 0.35 + snake.boostCharge * 0.65;
+  const drainMultiplier = 0.42 + snake.boostCharge * 1.08;
   snake.boostEnergy = Math.max(0, snake.boostEnergy - config.boostEnergyDrainPerSecond * drainMultiplier * dtSeconds);
   if (snake.boostEnergy === 0) {
     snake.boostCharge = 0;
@@ -285,10 +356,16 @@ function consumeFood(state: MatchState, rng: () => number): void {
     if (!snake.alive) continue;
     const head = snake.segments[0];
     if (!head) continue;
+    const eatRadius = state.config.collisionRadius + state.config.foodRadius;
+    const magnetRadius = eatRadius + FOOD_MAGNET_PADDING;
 
     const remainingFood: Food[] = [];
     for (const food of state.food) {
-      if (distance(head, food) <= state.config.collisionRadius + state.config.foodRadius) {
+      const deltaX = head.x - food.x;
+      const deltaY = head.y - food.y;
+      const distanceToFood = Math.hypot(deltaX, deltaY);
+
+      if (distanceToFood <= eatRadius) {
         snake.mass += food.value;
         snake.boostEnergy = Math.min(
           state.config.maxBoostEnergy,
@@ -296,6 +373,11 @@ function consumeFood(state: MatchState, rng: () => number): void {
         );
         snake.health = Math.min(100, snake.health + 3);
       } else {
+        if (distanceToFood < magnetRadius && distanceToFood > 0.001) {
+          const pullRatio = ((magnetRadius - distanceToFood) / magnetRadius) * FOOD_MAGNET_MAX_PULL;
+          food.x += deltaX * pullRatio;
+          food.y += deltaY * pullRatio;
+        }
         remainingFood.push(food);
       }
     }
@@ -380,7 +462,7 @@ function spawnFood(state: MatchState, rng: () => number): Food {
     id: `food:${state.tick}:${state.food.length}:${Math.floor(rng() * 1_000_000)}`,
     x: Math.cos(angle) * radius,
     y: Math.sin(angle) * radius,
-    value: 1
+    value: rng() > 0.88 ? 2 : 1
   };
 }
 

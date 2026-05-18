@@ -1,6 +1,6 @@
 import type { Client } from "colyseus";
 import { Room } from "colyseus";
-import { createMatch, stepMatch, type MatchState, type PlayerInput } from "../lib/game-core.js";
+import { createMatch, matchConfigForPlayers, stepMatch, type MatchState, type PlayerInput } from "../lib/game-core.js";
 import type { PlayerInputMessage, RoomConfig } from "../lib/shared.js";
 import {
   createInitialRoomState,
@@ -15,18 +15,21 @@ interface JoinOptions extends Partial<RoomConfig> {
   expectedPlayerIds?: string[];
   playerId?: string;
   name?: string;
+  skinId?: string;
 }
 
 interface SyncRosterMessage {
   expectedPlayerIds?: string[];
   maxPlayers?: number;
   name?: string;
+  skinId?: string;
 }
 
 interface PlayerSession {
   playerId: string;
   name: string;
   connected: boolean;
+  skinId: string;
 }
 
 const COUNTDOWN_MS = 5_000;
@@ -52,7 +55,7 @@ export class SnakeRoom extends Room<SnakeRoomState> {
     this.maxClients = roomConfig.maxPlayers;
     this.setMetadata({ matchId: this.matchKey });
     this.setState(createInitialRoomState(this.matchKey, roomConfig));
-    this.setPatchRate(100);
+    this.setPatchRate(Math.max(33, Math.round(1000 / this.state.config.tickRate)));
     this.syncExpectedPlayers(options.expectedPlayerIds, roomConfig.maxPlayers);
 
     this.onMessage("input", (client, message: PlayerInputMessage) => {
@@ -81,9 +84,17 @@ export class SnakeRoom extends Room<SnakeRoomState> {
         if (rosterSession) {
           rosterSession.name = nextName;
         }
+        if (message.skinId) {
+          const nextSkinId = sanitizeSkinId(message.skinId);
+          session.skinId = nextSkinId;
+          if (rosterSession) {
+            rosterSession.skinId = nextSkinId;
+          }
+        }
         syncPresence(this.state, session.playerId, {
           name: nextName,
-          connected: true
+          connected: true,
+          skinId: session.skinId
         });
       }
 
@@ -114,12 +125,15 @@ export class SnakeRoom extends Room<SnakeRoomState> {
       }
 
       const nextName = sanitizeName(options.name ?? existingSession.name);
+      const nextSkinId = sanitizeSkinId(options.skinId ?? existingSession.skinId);
       existingSession.connected = true;
       existingSession.name = nextName;
+      existingSession.skinId = nextSkinId;
       this.sessions.set(client.sessionId, existingSession);
       syncPresence(this.state, playerId, {
         name: nextName,
-        connected: true
+        connected: true,
+        skinId: nextSkinId
       });
       this.tryStartCountdown();
       return;
@@ -136,14 +150,16 @@ export class SnakeRoom extends Room<SnakeRoomState> {
     const session: PlayerSession = {
       playerId,
       name: sanitizeName(options.name ?? `Snake ${this.roster.size + 1}`),
-      connected: true
+      connected: true,
+      skinId: sanitizeSkinId(options.skinId)
     };
 
     this.sessions.set(client.sessionId, session);
     this.roster.set(playerId, session);
     syncPresence(this.state, playerId, {
       name: session.name,
-      connected: true
+      connected: true,
+      skinId: session.skinId
     });
 
     this.tryStartCountdown();
@@ -161,7 +177,8 @@ export class SnakeRoom extends Room<SnakeRoomState> {
     if (!consented) {
       syncPresence(this.state, session.playerId, {
         name: session.name,
-        connected: false
+        connected: false,
+        skinId: session.skinId
       });
 
       const player = this.roster.get(session.playerId);
@@ -174,7 +191,8 @@ export class SnakeRoom extends Room<SnakeRoomState> {
         this.sessions.set(reconnectedClient.sessionId, {
           playerId: session.playerId,
           name: session.name,
-          connected: true
+          connected: true,
+          skinId: session.skinId
         });
 
         const rosterSession = this.roster.get(session.playerId);
@@ -184,7 +202,8 @@ export class SnakeRoom extends Room<SnakeRoomState> {
 
         syncPresence(this.state, session.playerId, {
           name: session.name,
-          connected: true
+          connected: true,
+          skinId: session.skinId
         });
         this.tryStartCountdown();
         return;
@@ -201,7 +220,8 @@ export class SnakeRoom extends Room<SnakeRoomState> {
     if (this.expectedPlayerIds.has(session.playerId)) {
       syncPresence(this.state, session.playerId, {
         name: session.name,
-        connected: false
+        connected: false,
+        skinId: session.skinId
       });
     } else {
       this.roster.delete(session.playerId);
@@ -289,9 +309,9 @@ export class SnakeRoom extends Room<SnakeRoomState> {
         name: player.name
       })),
       `match:${this.matchKey}:${Date.now()}`,
-      {
+      matchConfigForPlayers(this.maxClients, {
         durationMs: this.state.config.durationMs
-      }
+      })
     );
     syncMatchState(this.state, this.match);
 
@@ -336,7 +356,8 @@ export class SnakeRoom extends Room<SnakeRoomState> {
       if (existing) {
         syncPresence(this.state, sanitized, {
           name: existing.name,
-          connected: existing.connected
+          connected: existing.connected,
+          skinId: existing.skinId
         });
       }
     }
@@ -367,6 +388,11 @@ function sanitizeAngle(value: number): number {
 function sanitizeName(value: string): string {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed.slice(0, 24) : "Snake";
+}
+
+function sanitizeSkinId(value: string | undefined): string {
+  const normalized = (value ?? "").trim().toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 32);
+  return normalized;
 }
 
 function sanitizePlayerId(value: string): string {

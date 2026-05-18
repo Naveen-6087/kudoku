@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import {
   BUY_IN_BRACKETS_ETH,
   DEFAULT_PLATFORM_FEE_BPS,
@@ -14,6 +15,7 @@ import {
   getExplorerTransactionUrl,
   getWalletSession,
   hashRoomCode,
+  isRpcRateLimitError,
   joinEscrowMatch,
   normalizeEscrowAddress,
   readEscrowMatch,
@@ -26,7 +28,7 @@ import {
 import { usePrivy, useWallets, type ConnectedWallet, type WalletListEntry } from "@privy-io/react-auth";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatEther, type Address } from "viem";
 
 const PRIVY_APP_ID = process.env.NEXT_PUBLIC_PRIVY_APP_ID ?? "";
@@ -34,7 +36,6 @@ const PRIVY_CLIENT_ID = process.env.NEXT_PUBLIC_PRIVY_CLIENT_ID ?? "";
 const PRIVY_ENABLED = Boolean(PRIVY_APP_ID && PRIVY_CLIENT_ID);
 const CONNECT_WALLET_LIST: WalletListEntry[] = [
   "metamask",
-  "coinbase_wallet",
   "wallet_connect",
   "detected_ethereum_wallets",
   "rainbow"
@@ -44,6 +45,7 @@ const DEFAULT_STAKE = BUY_IN_BRACKETS_ETH[1];
 const PLAYER_OPTIONS = MATCH_SIZE_PRESETS;
 const PRIVATE_CODE_LENGTH = 6;
 const PRIVATE_CODE_STORAGE_KEY = "kudoku-private-room-codes";
+const LOBBY_REFRESH_INTERVAL_MS = 12_000;
 
 type LobbyTab = "public" | "my-games";
 type RoomListItem = Awaited<ReturnType<typeof readPublicEscrowMatches>>[number];
@@ -102,6 +104,7 @@ function OnchainSetupContent({ contractAddress }: { contractAddress: Address }) 
   const [busy, setBusy] = useState<string | null>(null);
   const [status, setStatus] = useState("Connect your wallet to create or join a paid room.");
   const [lastTxUrl, setLastTxUrl] = useState<string | null>(null);
+  const refreshInFlightRef = useRef(false);
 
   const activeWallet = useMemo(
     () =>
@@ -117,6 +120,10 @@ function OnchainSetupContent({ contractAddress }: { contractAddress: Address }) 
   const privyReady = hydrated && ready;
   const onBaseSepolia = wallet?.chainId === KUDOKU_CHAIN_ID;
   const displayedGames = activeTab === "public" ? publicRooms : myGames;
+  const snakesReady = wallet ? 1 : 0;
+  const previewModeLabel = describeRoomSize(maxPlayersSelection);
+  const previewStakeLabel = describeStake(stakeEth);
+  const previewPool = Number.parseFloat(stakeEth) * maxPlayersSelection;
 
   useEffect(() => {
     setHydrated(true);
@@ -143,38 +150,56 @@ function OnchainSetupContent({ contractAddress }: { contractAddress: Address }) 
     }
   }, [generatedCode, isPrivateGame, showCreateModal]);
 
-  useEffect(() => {
-    let cancelled = false;
+  const refreshRooms = useCallback(
+    async (options?: { force?: boolean }) => {
+      if (refreshInFlightRef.current) {
+        return;
+      }
 
-    async function refreshRooms() {
+      if (!options?.force && typeof document !== "undefined" && document.visibilityState !== "visible") {
+        return;
+      }
+
+      refreshInFlightRef.current = true;
       try {
         const [publicRoomsResult, myRoomsResult] = await Promise.all([
           readPublicEscrowMatches(contractAddress),
           wallet ? readPlayerEscrowMatches(contractAddress, wallet.address) : Promise.resolve([])
         ]);
-        if (cancelled) {
-          return;
-        }
 
         setPublicRooms(publicRoomsResult.sort((left, right) => Number(right.matchId - left.matchId)));
         setMyGames(myRoomsResult.sort((left, right) => Number(right.matchId - left.matchId)));
       } catch (error) {
-        if (!cancelled) {
+        if (!isRpcRateLimitError(error)) {
           setStatus(readErrorMessage(error, "Unable to refresh rooms."));
         }
+      } finally {
+        refreshInFlightRef.current = false;
       }
-    }
+    },
+    [contractAddress, wallet]
+  );
 
-    void refreshRooms();
+  useEffect(() => {
+    void refreshRooms({ force: true });
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void refreshRooms({ force: true });
+      }
+    };
+
     const interval = window.setInterval(() => {
       void refreshRooms();
-    }, 3_000);
+    }, LOBBY_REFRESH_INTERVAL_MS);
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-      cancelled = true;
       window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [contractAddress, wallet]);
+  }, [refreshRooms]);
 
   useEffect(() => {
     if (!privyReady) {
@@ -432,6 +457,9 @@ function OnchainSetupContent({ contractAddress }: { contractAddress: Address }) 
       <section className="paid-lobby">
         <div className="paid-lobby__header">
           <div>
+            <Link className="site-logo site-logo--header" href="/">
+              <Image alt="Kudoku" height={54} src="/logo-text.png" width={232} />
+            </Link>
             <p className="paid-lobby__eyebrow">paid multiplayer</p>
             <h1>Kudoku rooms</h1>
             <p>{status}</p>
@@ -458,84 +486,139 @@ function OnchainSetupContent({ contractAddress }: { contractAddress: Address }) 
 
         <div className="paid-lobby__hero-grid">
           <button className="paid-lobby__hero-card paid-lobby__hero-card--create" onClick={() => setShowCreateModal(true)} type="button">
-            <span className="paid-lobby__hero-tag">create</span>
+            <span className="paid-lobby__hero-tag">forge lobby</span>
             <strong>Create paid game</strong>
-            <p>{wallet && onBaseSepolia ? "Stake, choose seats, and open the lobby." : "Connect + switch network to create."}</p>
+            <p>{wallet && onBaseSepolia ? "Stake, choose the arena, and open the hunting grounds." : "Connect and switch network to open a room."}</p>
           </button>
           <button className="paid-lobby__hero-card paid-lobby__hero-card--join" onClick={() => setShowJoinCodeModal(true)} type="button">
-            <span className="paid-lobby__hero-tag">private</span>
+            <span className="paid-lobby__hero-tag">private hunt</span>
             <strong>Join with code</strong>
-            <p>Enter the 6-character code shared by the room creator.</p>
+            <p>Enter the shared 6-character room code and stake into the same arena.</p>
           </button>
         </div>
 
-        <div className="paid-lobby__tabs">
-          <button className={activeTab === "public" ? "is-active" : ""} onClick={() => setActiveTab("public")} type="button">
-            Browse Public
-          </button>
-          <button className={activeTab === "my-games" ? "is-active" : ""} onClick={() => setActiveTab("my-games")} type="button">
-            My Games
-          </button>
-        </div>
-
-        <div className="paid-lobby__grid">
-          {displayedGames.length > 0 ? (
-            displayedGames.map((room) => {
-              const storedCode = room.isPrivate ? readStoredPrivateRoomCode(room.matchId.toString()) : null;
-              const joined = Boolean(wallet && isJoinedRoom(room, wallet.address));
-              const openOnly = activeTab === "my-games" || room.isPrivate || joined || room.status !== "Lobby";
-              const canDelete =
-                activeTab === "my-games" &&
-                wallet &&
-                room.creator.toLowerCase() === wallet.address.toLowerCase() &&
-                (room.status === "Lobby" || room.status === "Ready");
-
-              return (
-                <div className="paid-lobby__game-card" key={`${activeTab}-${room.matchId.toString()}`}>
-                  <div className="paid-lobby__game-card-top">
-                    <h3>#{room.matchId.toString()}</h3>
-                    <span>{room.isPrivate ? "Private" : "Public"}</span>
-                  </div>
-                  <div className="paid-lobby__game-card-meta">
-                    <span>{formatEthAmount(room.stakeWei)} ETH</span>
-                    <span>{room.players.length}/{room.maxPlayers} players</span>
-                    <span>{formatStatusLabel(room.status)}</span>
-                  </div>
-                  {room.isPrivate && storedCode ? (
-                    <div className="paid-lobby__code-row">
-                      <code>{storedCode}</code>
-                      <button onClick={() => void copyToClipboard(storedCode)} type="button">
-                        Copy
-                      </button>
-                    </div>
-                  ) : null}
-                  <div className="paid-lobby__game-card-actions">
-                    <button
-                      disabled={joiningGameId === room.matchId}
-                      onClick={() => void (openOnly ? Promise.resolve(handleOpenRoom(room)) : handleJoinLobbyRoom(room))}
-                      type="button"
-                    >
-                      {joiningGameId === room.matchId ? "joining..." : openOnly ? "Open Lobby" : "Join + Stake"}
-                    </button>
-                    {canDelete ? (
-                      <button
-                        className="danger"
-                        disabled={deletingGameId === room.matchId}
-                        onClick={() => void handleDeleteRoom(room)}
-                        type="button"
-                      >
-                        {deletingGameId === room.matchId ? "..." : "Delete"}
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-              );
-            })
-          ) : (
-            <div className="paid-lobby__empty">
-              <p>{activeTab === "public" ? "No public rooms available." : "You have not created any rooms yet."}</p>
+        <div className="paid-lobby__stage">
+          <div className="paid-lobby__main">
+            <div className="paid-lobby__tabs">
+              <button className={activeTab === "public" ? "is-active" : ""} onClick={() => setActiveTab("public")} type="button">
+                Public arenas
+              </button>
+              <button className={activeTab === "my-games" ? "is-active" : ""} onClick={() => setActiveTab("my-games")} type="button">
+                Your lobbies
+              </button>
             </div>
-          )}
+
+            <div className="paid-lobby__grid">
+              {displayedGames.length > 0 ? (
+                displayedGames.map((room) => {
+                  const storedCode = room.isPrivate ? readStoredPrivateRoomCode(room.matchId.toString()) : null;
+                  const joined = Boolean(wallet && isJoinedRoom(room, wallet.address));
+                  const openOnly = activeTab === "my-games" || room.isPrivate || joined || room.status !== "Lobby";
+                  const canDelete =
+                    activeTab === "my-games" &&
+                    wallet &&
+                    room.creator.toLowerCase() === wallet.address.toLowerCase() &&
+                    (room.status === "Lobby" || room.status === "Ready");
+
+                  return (
+                    <div className="paid-lobby__game-card" key={`${activeTab}-${room.matchId.toString()}`}>
+                      <div className="paid-lobby__game-card-top">
+                        <h3>#{room.matchId.toString()}</h3>
+                        <span>{room.isPrivate ? "Private" : "Public"}</span>
+                      </div>
+                      <div className="paid-lobby__game-card-meta">
+                        <span>{formatEthAmount(room.stakeWei)} ETH</span>
+                        <span>{room.players.length}/{room.maxPlayers} snakes</span>
+                        <span>{formatStatusLabel(room.status)}</span>
+                      </div>
+                      {room.isPrivate && storedCode ? (
+                        <div className="paid-lobby__code-row">
+                          <code>{storedCode}</code>
+                          <button onClick={() => void copyToClipboard(storedCode)} type="button">
+                            Copy
+                          </button>
+                        </div>
+                      ) : null}
+                      <div className="paid-lobby__game-card-actions">
+                        <button
+                          disabled={joiningGameId === room.matchId}
+                          onClick={() => void (openOnly ? Promise.resolve(handleOpenRoom(room)) : handleJoinLobbyRoom(room))}
+                          type="button"
+                        >
+                          {joiningGameId === room.matchId ? "joining..." : openOnly ? "Open Lobby" : "Join + Stake"}
+                        </button>
+                        {canDelete ? (
+                          <button
+                            className="danger"
+                            disabled={deletingGameId === room.matchId}
+                            onClick={() => void handleDeleteRoom(room)}
+                            type="button"
+                          >
+                            {deletingGameId === room.matchId ? "..." : "Delete"}
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="paid-lobby__empty">
+                  <p>{activeTab === "public" ? "No public arenas live right now." : "You have not opened a lobby yet."}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <aside className="paid-lobby__preview">
+            <div className="paid-lobby__preview-card">
+              <div className="paid-lobby__preview-header">
+                <p className="paid-lobby__eyebrow">live arena</p>
+                <strong>{previewModeLabel.headline}</strong>
+                <span>{previewModeLabel.subline}</span>
+              </div>
+
+              <div className="paid-lobby__preview-media">
+                <Image
+                  alt="Arena preview"
+                  fill
+                  sizes="(max-width: 1180px) 100vw, 32vw"
+                  src="/arena.png"
+                />
+              </div>
+
+              <div className="paid-lobby__readiness">
+                <span>{`${snakesReady} / ${maxPlayersSelection} SNAKES READY`}</span>
+                <strong>{snakesReady === maxPlayersSelection ? "MATCH STARTING" : "HUNTING GROUNDS OPEN"}</strong>
+              </div>
+
+              <div className="paid-lobby__stats-grid">
+                <div className="paid-lobby__stat-card">
+                  <span>Prize Pool</span>
+                  <strong>{`${previewPool.toFixed(3)} ETH`}</strong>
+                </div>
+                <div className="paid-lobby__stat-card">
+                  <span>Snakes in Arena</span>
+                  <strong>{`${snakesReady} / ${maxPlayersSelection}`}</strong>
+                </div>
+                <div className="paid-lobby__stat-card">
+                  <span>Match Type</span>
+                  <strong>{isPrivateGame ? "Private" : "Public"}</strong>
+                </div>
+                <div className="paid-lobby__stat-card">
+                  <span>Map</span>
+                  <strong>{previewModeLabel.map}</strong>
+                </div>
+                <div className="paid-lobby__stat-card">
+                  <span>Buy-in</span>
+                  <strong>{previewStakeLabel}</strong>
+                </div>
+                <div className="paid-lobby__stat-card">
+                  <span>Time Limit</span>
+                  <strong>3 MINUTES</strong>
+                </div>
+              </div>
+            </div>
+          </aside>
         </div>
 
         {lastTxUrl ? (
@@ -547,72 +630,82 @@ function OnchainSetupContent({ contractAddress }: { contractAddress: Address }) 
 
       {showCreateModal ? (
         <div className="paid-lobby__modal-backdrop">
-          <div className="paid-lobby__modal">
-            <h2>Create Game Room</h2>
+          <div className="paid-lobby__modal paid-lobby__modal--compact">
+            <div className="paid-lobby__modal-stack">
+              <div className="paid-lobby__modal-heading">
+                <h2>Create game</h2>
+                <p className="paid-lobby__modal-copy">Set the room and jump in.</p>
+              </div>
 
-            <div className="paid-lobby__toggle">
-              <button className={!isPrivateGame ? "is-active is-public" : ""} onClick={() => togglePrivateMode(false)} type="button">
-                Public
-              </button>
-              <button className={isPrivateGame ? "is-active is-private" : ""} onClick={() => togglePrivateMode(true)} type="button">
-                Private
-              </button>
-            </div>
+              <div className="paid-lobby__toggle">
+                <button className={!isPrivateGame ? "is-active is-public" : ""} onClick={() => togglePrivateMode(false)} type="button">
+                  Public
+                </button>
+                <button className={isPrivateGame ? "is-active is-private" : ""} onClick={() => togglePrivateMode(true)} type="button">
+                  Private
+                </button>
+              </div>
 
-            <div className="paid-lobby__selector">
-              {PLAYER_OPTIONS.map((value) => (
+              <div className="paid-lobby__modal-section">
+                <p className="paid-lobby__section-label">Snakes in Arena</p>
+                <div className="paid-lobby__selector paid-lobby__selector--compact">
+                  {PLAYER_OPTIONS.map((value) => (
+                    <button
+                      className={maxPlayersSelection === value ? "is-active" : ""}
+                      key={value}
+                      onClick={() => setMaxPlayersSelection(value)}
+                      type="button"
+                    >
+                      {value}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="paid-lobby__modal-section">
+                <p className="paid-lobby__section-label">Stake per Snake</p>
+                <div className="paid-lobby__selector paid-lobby__selector--compact">
+                  {BUY_IN_BRACKETS_ETH.map((value) => (
+                    <button className={stakeEth === value ? "is-active" : ""} key={value} onClick={() => setStakeEth(value)} type="button">
+                      {value} ETH
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {isPrivateGame ? (
+                <div className="paid-lobby__private-code">
+                  <label>Game Code</label>
+                  <div className="paid-lobby__code-row paid-lobby__code-row--large">
+                    <code>{generatedCode}</code>
+                    <button
+                      onClick={() => {
+                        void copyToClipboard(generatedCode);
+                        setCodeCopied(true);
+                      }}
+                      type="button"
+                    >
+                      {codeCopied ? "Copied!" : "Copy"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className="paid-lobby__modal-copy">Public rooms appear in the lobby for anyone to join.</p>
+              )}
+
+              <div className="paid-lobby__modal-actions">
+                <button className="paid-lobby__ghost" onClick={() => setShowCreateModal(false)} type="button">
+                  Cancel
+                </button>
                 <button
-                  className={maxPlayersSelection === value ? "is-active" : ""}
-                  key={value}
-                  onClick={() => setMaxPlayersSelection(value)}
+                  className="paid-lobby__primary"
+                  disabled={busy === "create" || !wallet || !onBaseSepolia}
+                  onClick={() => void handleCreateRoom()}
                   type="button"
                 >
-                  {value} Players
+                  {busy === "create" ? "Creating..." : `Create ${isPrivateGame ? "Private" : "Public"} Game`}
                 </button>
-              ))}
-            </div>
-
-            <div className="paid-lobby__selector">
-              {BUY_IN_BRACKETS_ETH.map((value) => (
-                <button className={stakeEth === value ? "is-active" : ""} key={value} onClick={() => setStakeEth(value)} type="button">
-                  {value} ETH
-                </button>
-              ))}
-            </div>
-
-            {isPrivateGame ? (
-              <div className="paid-lobby__private-code">
-                <label>Game Code</label>
-                <div className="paid-lobby__code-row paid-lobby__code-row--large">
-                  <code>{generatedCode}</code>
-                  <button
-                    onClick={() => {
-                      void copyToClipboard(generatedCode);
-                      setCodeCopied(true);
-                    }}
-                    type="button"
-                  >
-                    {codeCopied ? "Copied!" : "Copy"}
-                  </button>
-                </div>
-                <p>Only players with this code can join your game.</p>
               </div>
-            ) : (
-              <p className="paid-lobby__modal-copy">Anyone can browse and join a public room from the lobby.</p>
-            )}
-
-            <div className="paid-lobby__modal-actions">
-              <button className="paid-lobby__ghost" onClick={() => setShowCreateModal(false)} type="button">
-                Cancel
-              </button>
-              <button
-                className="paid-lobby__primary"
-                disabled={busy === "create" || !wallet || !onBaseSepolia}
-                onClick={() => void handleCreateRoom()}
-                type="button"
-              >
-                {busy === "create" ? "Creating..." : `Create ${isPrivateGame ? "Private" : "Public"} Game`}
-              </button>
             </div>
           </div>
         </div>
@@ -716,6 +809,55 @@ function formatStatusLabel(value: string) {
     default:
       return value;
   }
+}
+
+function describeRoomSize(players: number) {
+  switch (players) {
+    case 3:
+      return {
+        headline: "Fast Duel",
+        subline: "Tight circle. Quick eliminations.",
+        map: "Tight Arena"
+      };
+    case 4:
+      return {
+        headline: "Sharp Clash",
+        subline: "Compact pressure with more flanks.",
+        map: "Burning Ring"
+      };
+    case 6:
+      return {
+        headline: "Balanced Chaos",
+        subline: "Enough room to grow, never enough to relax.",
+        map: "Core Arena"
+      };
+    case 12:
+      return {
+        headline: "High Stakes Survival",
+        subline: "Crowded field. Massive pool. Brutal endgame.",
+        map: "Grand Pit"
+      };
+    default:
+      return {
+        headline: "Live Arena",
+        subline: "Competitive stake room.",
+        map: "Arena"
+      };
+  }
+}
+
+function describeStake(value: string) {
+  const amount = Number.parseFloat(value);
+  if (amount <= 0.0005) {
+    return "Warm-up buy-in";
+  }
+  if (amount <= 0.001) {
+    return "Prime table";
+  }
+  if (amount <= 0.005) {
+    return "High pressure";
+  }
+  return "Whale hunt";
 }
 
 function isJoinedRoom(room: Pick<RoomListItem, "players">, walletAddress: Address) {

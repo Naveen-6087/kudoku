@@ -224,11 +224,12 @@ function drawFrame(input: {
   const snakes = Object.values(renderState.snakes ?? {});
   const localSnake = renderState.snakes[currentPlayerId] ?? snakes[0];
   const head = localSnake?.segments[0] ?? { x: 0, y: 0 };
-
-  const zoom = clamp(Math.min(size.width, size.height) / Math.max(renderState.safeRadius * 1.7, 1), 0.22, 0.58);
+  const localLength = Math.max(localSnake?.segments.length ?? 0, 18);
+  const arenaScale = clamp(renderState.safeRadius / 2_000, 0.42, 1.9);
+  const zoom = clamp(Math.min(size.width, size.height) / (340 * arenaScale + localLength * 4.3), 0.34, 0.9);
   zoomRef.current = zoom;
-  camera.x = lerp(camera.x, head.x, 0.14);
-  camera.y = lerp(camera.y, head.y, 0.14);
+  camera.x = lerp(camera.x, head.x, 0.22);
+  camera.y = lerp(camera.y, head.y, 0.22);
 
   context.clearRect(0, 0, size.width, size.height);
   context.fillStyle = palette.background;
@@ -249,10 +250,9 @@ function drawFrame(input: {
   };
 
   drawArenaFloor(context, view, palette, time);
-  drawGrid(context, view, palette.border);
-  drawHazard(context, view, renderState.safeRadius, palette.mapHazard, palette.mapHazardSoft);
+  drawBoundary(context, view, renderState.safeRadius, palette);
   drawFood(context, renderState.food, view, palette, time);
-  drawSnakes(context, snakes, currentPlayerId, palette, snakeSkinIds, view);
+  drawSnakes(context, snakes, currentPlayerId, palette, snakeSkinIds, view, time);
   drawLabels(context, snakes, currentPlayerId, palette, snakeSkinIds, view, zoom, renderState.elapsedMs);
 
   context.restore();
@@ -264,90 +264,69 @@ function drawArenaFloor(
   palette: ThemePalette,
   time: number
 ) {
-  const gradient = context.createLinearGradient(view.minX, view.minY, view.maxX, view.maxY);
-  gradient.addColorStop(0, palette.background);
-  gradient.addColorStop(0.5, palette.ember);
-  gradient.addColorStop(1, palette.background);
-  context.globalAlpha = 0.8;
+  const gradient = context.createRadialGradient(0, 0, 120, 0, 0, Math.max(view.maxX - view.minX, view.maxY - view.minY));
+  gradient.addColorStop(0, palette.ember);
+  gradient.addColorStop(0.55, palette.background);
+  gradient.addColorStop(1, "#1d1f1c");
+  context.globalAlpha = 1;
   context.fillStyle = gradient;
   context.fillRect(view.minX, view.minY, view.maxX - view.minX, view.maxY - view.minY);
 
-  for (let index = 0; index < 12; index += 1) {
-    const x = Math.sin(index * 12.31) * 1550;
-    const y = Math.cos(index * 8.17) * 1550;
-    const radius = 170 + (index % 4) * 38 + Math.sin(time * 0.0015 + index) * 18;
-    if (x + radius < view.minX || x - radius > view.maxX || y + radius < view.minY || y - radius > view.maxY) {
-      continue;
-    }
+  const tileSize = 180;
+  const startTileX = Math.floor(view.minX / tileSize) - 2;
+  const endTileX = Math.ceil(view.maxX / tileSize) + 2;
+  const startTileY = Math.floor(view.minY / tileSize) - 2;
+  const endTileY = Math.ceil(view.maxY / tileSize) + 2;
 
-    const pool = context.createRadialGradient(x, y, radius * 0.18, x, y, radius);
-    pool.addColorStop(0, palette.mapHazardSoft);
-    pool.addColorStop(0.45, palette.mapHazard);
-    pool.addColorStop(1, "rgba(0,0,0,0)");
-    context.globalAlpha = 0.24;
-    context.fillStyle = pool;
-    context.beginPath();
-    context.arc(x, y, radius, 0, Math.PI * 2);
-    context.fill();
-  }
+  for (let tileY = startTileY; tileY <= endTileY; tileY += 1) {
+    for (let tileX = startTileX; tileX <= endTileX; tileX += 1) {
+      const seed = hash2d(tileX, tileY);
+      const centerX = tileX * tileSize + 28 + (seed % 124);
+      const centerY = tileY * tileSize + 22 + ((seed >> 4) % 124);
+      const radius = 10 + (seed % 4) * 3;
+      const shimmer = 0.03 + (((seed >> 6) % 10) / 200) + Math.sin(time * 0.0018 + seed) * 0.01;
 
-  context.globalAlpha = 1;
-}
+      context.globalAlpha = shimmer;
+      context.fillStyle = palette.border;
+      context.beginPath();
+      context.arc(centerX, centerY, radius, 0, Math.PI * 2);
+      context.fill();
 
-function drawGrid(
-  context: CanvasRenderingContext2D,
-  view: { minX: number; maxX: number; minY: number; maxY: number },
-  borderColor: string
-) {
-  const hexRadius = 54;
-  const hexWidth = Math.sqrt(3) * hexRadius;
-  const rowHeight = hexRadius * 1.5;
-  const startRow = Math.floor(view.minY / rowHeight) - 2;
-  const endRow = Math.ceil(view.maxY / rowHeight) + 2;
-  const startCol = Math.floor(view.minX / hexWidth) - 2;
-  const endCol = Math.ceil(view.maxX / hexWidth) + 2;
-
-  context.strokeStyle = borderColor;
-  context.lineWidth = 4;
-  context.globalAlpha = 0.12;
-
-  for (let row = startRow; row <= endRow; row += 1) {
-    const y = row * rowHeight;
-    const rowOffset = row % 2 === 0 ? 0 : hexWidth / 2;
-    for (let col = startCol; col <= endCol; col += 1) {
-      const x = col * hexWidth + rowOffset;
-      drawHexCell(context, x, y, hexRadius);
+      context.globalAlpha = shimmer * 0.7;
+      context.fillStyle = palette.foreground;
+      context.beginPath();
+      context.arc(centerX - radius * 0.2, centerY - radius * 0.2, radius * 0.34, 0, Math.PI * 2);
+      context.fill();
     }
   }
 
   context.globalAlpha = 1;
 }
 
-function drawHazard(
+function drawBoundary(
   context: CanvasRenderingContext2D,
   view: { minX: number; maxX: number; minY: number; maxY: number },
   safeRadius: number,
-  hazardColor: string,
-  hazardSoftColor: string
+  palette: ThemePalette
 ) {
   context.save();
   context.beginPath();
   context.rect(view.minX, view.minY, view.maxX - view.minX, view.maxY - view.minY);
   context.arc(0, 0, safeRadius, 0, Math.PI * 2, true);
   context.clip("evenodd");
-  context.fillStyle = hazardSoftColor;
-  context.globalAlpha = 0.12;
+  context.fillStyle = "rgba(5, 7, 8, 0.34)";
+  context.globalAlpha = 1;
   context.fillRect(view.minX, view.minY, view.maxX - view.minX, view.maxY - view.minY);
   context.restore();
 
-  context.strokeStyle = hazardColor;
-  context.globalAlpha = 0.9;
-  context.lineWidth = 12;
+  context.strokeStyle = palette.mapHazardSoft;
+  context.globalAlpha = 0.35;
+  context.lineWidth = 10;
   context.beginPath();
   context.arc(0, 0, safeRadius, 0, Math.PI * 2);
   context.stroke();
-  context.globalAlpha = 0.24;
-  context.lineWidth = 32;
+  context.globalAlpha = 0.1;
+  context.lineWidth = 30;
   context.beginPath();
   context.arc(0, 0, safeRadius, 0, Math.PI * 2);
   context.stroke();
@@ -366,17 +345,15 @@ function drawFood(
       continue;
     }
 
-    const pulse = 1 + Math.sin(time * 0.008 + item.x * 0.01 + item.y * 0.01) * 0.16;
-    const radius = item.id.startsWith("food:") ? 8.5 * pulse : 11 * pulse;
-    const hue = Math.abs(Math.round((item.x * 0.11 + item.y * 0.07) % 360));
-    const glowColor =
-      item.value > 1 ? palette.mapHazard : `oklch(0.84 0.19 ${hue.toString()})`;
+    const pulse = 1 + Math.sin(time * 0.008 + item.x * 0.01 + item.y * 0.01) * 0.14;
+    const radius = (item.id.startsWith("food:") ? 7.8 : 9.4) * pulse;
+    const glowColor = resolveFoodColor(item.id, item.value, palette);
 
     context.save();
-    context.globalAlpha = 0.42;
+    context.globalAlpha = 0.34;
     context.fillStyle = glowColor;
     context.beginPath();
-    context.arc(item.x, item.y, radius * 1.8, 0, Math.PI * 2);
+    context.arc(item.x, item.y, radius * 2.4, 0, Math.PI * 2);
     context.fill();
     context.restore();
 
@@ -385,10 +362,16 @@ function drawFood(
     context.arc(item.x, item.y, radius, 0, Math.PI * 2);
     context.fill();
 
-    context.fillStyle = "rgba(255,255,255,0.78)";
-    context.globalAlpha = 0.72;
+    context.globalAlpha = 0.5;
+    context.fillStyle = "rgba(255,255,255,0.22)";
     context.beginPath();
-    context.arc(item.x - radius * 0.25, item.y - radius * 0.25, radius * 0.36, 0, Math.PI * 2);
+    context.arc(item.x, item.y, radius * 0.72, 0, Math.PI * 2);
+    context.fill();
+
+    context.fillStyle = "rgba(255,255,255,0.78)";
+    context.globalAlpha = 0.84;
+    context.beginPath();
+    context.arc(item.x - radius * 0.26, item.y - radius * 0.3, radius * 0.3, 0, Math.PI * 2);
     context.fill();
     context.globalAlpha = 1;
   }
@@ -400,7 +383,8 @@ function drawSnakes(
   currentPlayerId: string,
   palette: ThemePalette,
   snakeSkinIds: Record<string, SnakeSkinId>,
-  view: { minX: number; maxX: number; minY: number; maxY: number }
+  view: { minX: number; maxX: number; minY: number; maxY: number },
+  time: number
 ) {
   for (const snake of snakes) {
     const head = snake.segments[0];
@@ -409,80 +393,71 @@ function drawSnakes(
     }
 
     const skin = getSnakeSkin(snakeSkinIds[snake.id]);
-    const outline = snake.id === currentPlayerId ? skin.accent : palette.border;
+    const bodyRadius = resolveSnakeRadius(snake);
+    const outline = snake.id === currentPlayerId ? skin.accent : "rgba(255,255,255,0.32)";
+    const boostGlow = 0.1 + snake.boostCharge * 0.34 + Math.sin(time * 0.02 + snake.segments.length) * 0.02;
 
     context.save();
-    context.strokeStyle = skin.glow;
-    context.globalAlpha = snake.alive ? 0.22 : 0.08;
     context.lineCap = "round";
     context.lineJoin = "round";
-      context.lineWidth = 18;
-    context.beginPath();
-    snake.segments.forEach((segment, index) => {
-      if (index === 0) {
-        context.moveTo(segment.x, segment.y);
-      } else {
-        context.lineTo(segment.x, segment.y);
-      }
-    });
+
+    traceSnakePath(context, snake.segments, 0, bodyRadius * 0.52);
+    context.strokeStyle = "rgba(0,0,0,0.3)";
+    context.lineWidth = bodyRadius * 2.1;
+    context.globalAlpha = snake.alive ? 0.4 : 0.18;
     context.stroke();
-    context.restore();
 
-    for (let index = snake.segments.length - 1; index >= 0; index -= 1) {
-      const segment = snake.segments[index];
-      if (!segment) {
-        continue;
-      }
-      const radius = index === 0 ? 22 : Math.max(7.5, 17.2 - index * 0.12);
-
-      context.fillStyle = skin.glow;
-      context.globalAlpha = snake.alive ? 0.24 : 0.08;
-      context.beginPath();
-      context.arc(segment.x, segment.y, radius * 1.3, 0, Math.PI * 2);
-      context.fill();
-
-      context.fillStyle = skin.body;
-      context.globalAlpha = snake.alive ? 1 : 0.32;
-      context.beginPath();
-      context.arc(segment.x, segment.y, radius, 0, Math.PI * 2);
-      context.fill();
-
-      if (index === 0 || index % 2 === 0) {
-        context.fillStyle = skin.accent;
-        context.globalAlpha = snake.alive ? 0.24 : 0.1;
-        context.beginPath();
-        context.ellipse(
-          segment.x + Math.cos(snake.angle) * radius * 0.12,
-          segment.y + Math.sin(snake.angle) * radius * 0.12,
-          radius * 0.52,
-          radius * 0.34,
-          snake.angle,
-          0,
-          Math.PI * 2
-        );
-        context.fill();
-      }
-
-      if (index === 0) {
-        context.strokeStyle = outline;
-        context.lineWidth = 2.8;
-        context.beginPath();
-        context.arc(segment.x, segment.y, radius, 0, Math.PI * 2);
-        context.stroke();
-
-        const eyeOffset = radius * 0.42;
-        const eyeRadius = 5.2;
-        const forwardX = Math.cos(snake.angle);
-        const forwardY = Math.sin(snake.angle);
-        const sideX = -forwardY;
-        const sideY = forwardX;
-
-        drawEye(context, segment.x, segment.y, forwardX, forwardY, sideX, sideY, eyeOffset, eyeRadius, 1);
-        drawEye(context, segment.x, segment.y, forwardX, forwardY, sideX, sideY, -eyeOffset, eyeRadius, -1);
-      }
+    if (snake.boostCharge > 0.03) {
+      traceSnakePath(context, snake.segments);
+      context.strokeStyle = skin.glow;
+      context.lineWidth = bodyRadius * (2.45 + snake.boostCharge * 0.9);
+      context.globalAlpha = 0.2 + snake.boostCharge * 0.4;
+      context.shadowBlur = 24 + snake.boostCharge * 28;
+      context.shadowColor = skin.glow;
+      context.stroke();
+      context.shadowBlur = 0;
     }
 
-    context.globalAlpha = 1;
+    traceSnakePath(context, snake.segments);
+    context.strokeStyle = skin.glow;
+    context.lineWidth = bodyRadius * 2.02;
+    context.globalAlpha = snake.alive ? boostGlow : 0.1;
+    context.stroke();
+
+    traceSnakePath(context, snake.segments);
+    context.strokeStyle = snake.alive ? skin.body : "rgba(120,120,120,0.6)";
+    context.lineWidth = bodyRadius * 1.72;
+    context.globalAlpha = snake.alive ? 1 : 0.4;
+    context.stroke();
+
+    traceSnakePath(context, snake.segments);
+    context.strokeStyle = snake.alive ? skin.accent : "rgba(255,255,255,0.16)";
+    context.lineWidth = bodyRadius * 0.68;
+    context.globalAlpha = snake.alive ? 0.28 : 0.12;
+    context.stroke();
+
+    context.globalAlpha = snake.alive ? 1 : 0.42;
+    context.fillStyle = snake.alive ? skin.body : "rgba(145,145,145,0.7)";
+    context.beginPath();
+    context.arc(head.x, head.y, bodyRadius, 0, Math.PI * 2);
+    context.fill();
+
+    context.strokeStyle = outline;
+    context.lineWidth = 2.6;
+    context.beginPath();
+    context.arc(head.x, head.y, bodyRadius, 0, Math.PI * 2);
+    context.stroke();
+
+    const eyeOffset = bodyRadius * 0.48;
+    const eyeRadius = Math.max(4.8, bodyRadius * 0.24);
+    const forwardX = Math.cos(snake.angle);
+    const forwardY = Math.sin(snake.angle);
+    const sideX = -forwardY;
+    const sideY = forwardX;
+
+    drawEye(context, head.x, head.y, forwardX, forwardY, sideX, sideY, eyeOffset, eyeRadius, 1);
+    drawEye(context, head.x, head.y, forwardX, forwardY, sideX, sideY, -eyeOffset, eyeRadius, -1);
+    context.restore();
   }
 }
 
@@ -533,7 +508,7 @@ function drawLabels(
     return;
   }
 
-  context.font = "600 24px Inter, sans-serif";
+  context.font = "700 20px Arial, sans-serif";
   context.textAlign = "center";
   context.textBaseline = "middle";
 
@@ -548,59 +523,26 @@ function drawLabels(
     }
 
     const skin = getSnakeSkin(snakeSkinIds[snake.id]);
-    context.fillStyle = snake.id === currentPlayerId ? skin.accent : palette.muted;
-    context.globalAlpha = snake.alive ? 0.9 : 0.45;
-    context.fillText(snake.name, head.x, head.y - 28);
+      context.fillStyle = snake.id === currentPlayerId ? skin.accent : palette.muted;
+      context.globalAlpha = snake.alive ? 0.92 : 0.45;
+      context.fillText(snake.name, head.x, head.y - 32);
   }
 
   context.globalAlpha = 1;
 }
 
-function drawHexCell(context: CanvasRenderingContext2D, x: number, y: number, radius: number) {
-  context.beginPath();
-  for (let index = 0; index < 6; index += 1) {
-    const angle = (Math.PI / 180) * (60 * index - 30);
-    const pointX = x + radius * Math.cos(angle);
-    const pointY = y + radius * Math.sin(angle);
-    if (index === 0) {
-      context.moveTo(pointX, pointY);
-    } else {
-      context.lineTo(pointX, pointY);
-    }
-  }
-  context.closePath();
-  context.stroke();
-}
-
 function readPalette(): ThemePalette {
-  if (typeof window === "undefined") {
-    return {
-      background: "#0f0f06",
-      foreground: "#f5f4ec",
-      border: "rgba(255,255,255,0.16)",
-      primary: "#e3dc3a",
-      accent: "#eee977",
-      muted: "rgba(255,255,255,0.55)",
-      danger: "#ff5d73",
-      mapHazard: "#f05f34",
-      mapHazardSoft: "#f69a78",
-      ember: "rgba(255,120,72,0.18)"
-    };
-  }
-
-  const styles = window.getComputedStyle(document.documentElement);
-
   return {
-    background: resolveCanvasColor(styles.getPropertyValue("--background"), "#0f0f06"),
-    foreground: resolveCanvasColor(styles.getPropertyValue("--foreground"), "#f5f4ec"),
-    border: resolveCanvasColor(styles.getPropertyValue("--border"), "rgba(255,255,255,0.16)"),
-    primary: resolveCanvasColor(styles.getPropertyValue("--primary"), "#e3dc3a"),
-    accent: resolveCanvasColor(styles.getPropertyValue("--accent"), "#eee977"),
-    muted: resolveCanvasColor(styles.getPropertyValue("--muted-foreground"), "rgba(255,255,255,0.55)"),
-    danger: resolveCanvasColor(styles.getPropertyValue("--destructive"), "#ff5d73"),
-    mapHazard: resolveCanvasColor(styles.getPropertyValue("--map-hazard"), "#f05f34"),
-    mapHazardSoft: resolveCanvasColor(styles.getPropertyValue("--map-hazard-soft"), "#f69a78"),
-    ember: resolveCanvasColor(styles.getPropertyValue("--ember"), "rgba(255,120,72,0.18)")
+    background: "#2b2f2b",
+    foreground: "#f7f3df",
+    border: "rgba(255,255,255,0.08)",
+    primary: "#ffe073",
+    accent: "#fff3be",
+    muted: "rgba(255,255,255,0.72)",
+    danger: "#ff725f",
+    mapHazard: "#d45a47",
+    mapHazardSoft: "rgba(255,150,120,0.66)",
+    ember: "#353b34"
   };
 }
 
@@ -612,29 +554,63 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-function resolveCanvasColor(candidate: string, fallback: string): string {
-  if (typeof document === "undefined") {
-    return fallback;
+function traceSnakePath(
+  context: CanvasRenderingContext2D,
+  segments: Snake["segments"],
+  offset = 0,
+  shadowOffset = 0
+) {
+  context.beginPath();
+  segments.forEach((segment, index) => {
+    const x = segment.x;
+    const y = segment.y + shadowOffset;
+    if (index === 0) {
+      context.moveTo(x, y);
+      return;
+    }
+
+    if (index % 2 === 0 && offset > 0) {
+      context.lineTo(x, y + offset);
+      return;
+    }
+
+    context.lineTo(x, y);
+  });
+}
+
+function resolveSnakeRadius(snake: Snake | undefined) {
+  if (!snake) {
+    return 18;
   }
 
-  const canvas = document.createElement("canvas");
-  const context = canvas.getContext("2d");
-  if (!context) {
-    return fallback;
+  return clamp(16 + (snake.mass - 12) * 0.18, 16, 30);
+}
+
+function hash2d(x: number, y: number) {
+  const value = Math.sin(x * 127.1 + y * 311.7) * 43758.5453123;
+  return Math.abs(Math.floor((value - Math.floor(value)) * 100000));
+}
+
+function resolveFoodColor(id: string, value: number, palette: ThemePalette) {
+  if (value > 1) {
+    return palette.mapHazard;
   }
 
-  context.fillStyle = fallback;
-  const initial = context.fillStyle;
-  const trimmed = candidate.trim();
-  if (!trimmed) {
-    return typeof initial === "string" ? initial : fallback;
-  }
+  const colors = [
+    "#ff5a76",
+    "#5ee27f",
+    "#67c9ff",
+    "#ffd54f",
+    "#c58bff",
+    "#ff9d57"
+  ] as const;
+  return colors[hashString(id) % colors.length] ?? palette.primary;
+}
 
-  context.fillStyle = trimmed;
-  const resolved = context.fillStyle;
-  if (typeof resolved !== "string") {
-    return fallback;
+function hashString(value: string) {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = Math.imul(31, hash) + value.charCodeAt(index);
   }
-
-  return resolved || fallback;
+  return Math.abs(hash);
 }

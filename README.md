@@ -1,6 +1,6 @@
 # Kudoku
 
-Kudoku is a real-money snake battle royale inspired by Slither.io. The active app layout now mirrors the local `zkv-uno` reference more closely: a standalone `frontend/` Next.js app, a standalone `backend/` Node server, plus kept-in-place `contracts/`, `circuits/`, and Phala deployment assets.
+Kudoku is a real-money snake battle royale inspired by Slither.io. The active app layout now mirrors the local `zkv-uno` reference more closely: a standalone `frontend/` Next.js app, a standalone `backend/` Node server, plus kept-in-place `contracts/` and `circuits/`.
 
 ## Stack
 
@@ -10,7 +10,6 @@ Kudoku is a real-money snake battle royale inspired by Slither.io. The active ap
 | Backend | Node.js, TypeScript, Colyseus room server |
 | Contracts | Foundry, Solidity, Base Sepolia |
 | ZK | Noir `1.0.0-beta.6`, bb.js `0.84.0`, UltraHonk, zkVerify/Kurier |
-| TEE | Phala dstack/CVM deployment assets kept at the repo root |
 
 ## Project Structure
 
@@ -88,27 +87,6 @@ Or use Compose:
 
 ```bash
 docker compose -f compose.server.yaml up --build
-```
-
-## Phala CVM / dstack deployment
-
-The Phala deployment assets remain at the repo root:
-
-- `docker-compose.phala.yaml`
-- `docker-compose.phala.ingress.yaml`
-- `compose.server.yaml`
-
-To publish the backend image:
-
-```bash
-docker build -f backend/Dockerfile -t ghcr.io/your-org/kudoku-server:latest .
-docker push ghcr.io/your-org/kudoku-server:latest
-```
-
-Then set:
-
-```bash
-KUDOKU_SERVER_IMAGE=ghcr.io/your-org/kudoku-server:latest
 ```
 
 ## Base Sepolia escrow deployment

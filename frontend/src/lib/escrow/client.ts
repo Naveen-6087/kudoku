@@ -127,33 +127,7 @@ export async function readEscrowMatch(
     functionName: "getMatch",
     args: [matchId]
   });
-  const {
-    creator,
-    stakeWei,
-    maxPlayers,
-    platformFeeBps,
-    status,
-    resultHash,
-    isPrivate,
-    roomCodeHash,
-    readyAt,
-    startedAt,
-    players
-  } = result;
-
-  return {
-    creator,
-    stakeWei: stakeWei.toString(),
-    maxPlayers: Number(maxPlayers),
-    platformFeeBps: Number(platformFeeBps),
-    status: ESCROW_MATCH_STATUSES[Number(status)] ?? ESCROW_MATCH_STATUSES[0],
-    resultHash,
-    isPrivate,
-    roomCodeHash,
-    readyAt: Number(readyAt),
-    startedAt: Number(startedAt),
-    players: [...players]
-  };
+  return toEscrowMatchView(result as unknown as EscrowMatchResult);
 }
 
 export async function readPublicEscrowMatches(
@@ -166,12 +140,7 @@ export async function readPublicEscrowMatches(
     functionName: "getPublicOpenMatches"
   });
 
-  return Promise.all(
-    matchIds.map(async (matchId) => ({
-      ...(await readEscrowMatch(contractAddress, matchId)),
-      matchId
-    }))
-  );
+  return readEscrowMatchesByIds(contractAddress, matchIds);
 }
 
 export async function readCreatorEscrowMatches(
@@ -426,12 +395,7 @@ async function readMatchCollection(
     args: [account]
   });
 
-  const rooms = await Promise.all(
-    matchIds.map(async (matchId) => ({
-      ...(await readEscrowMatch(contractAddress, matchId)),
-      matchId
-    }))
-  );
+  const rooms = await readEscrowMatchesByIds(contractAddress, matchIds);
 
   return rooms.sort((left, right) => Number(right.matchId - left.matchId));
 }
@@ -448,6 +412,88 @@ export function generatePrivateRoomCode(length = 6): string {
 
 export function hashRoomCode(roomCode: string): Hex {
   return keccak256(stringToHex(roomCode.trim().toUpperCase()));
+}
+
+export function isRpcRateLimitError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message.toLowerCase() : "";
+  return message.includes("rate limit") || message.includes("429") || message.includes("too many requests");
+}
+
+type NumericLike = number | bigint;
+
+interface EscrowMatchResult {
+  creator: Address;
+  stakeWei: bigint;
+  maxPlayers: NumericLike;
+  platformFeeBps: NumericLike;
+  status: NumericLike;
+  resultHash: Hex;
+  isPrivate: boolean;
+  roomCodeHash: Hex;
+  readyAt: NumericLike;
+  startedAt: NumericLike;
+  players: readonly Address[];
+}
+
+async function readEscrowMatchesByIds(
+  contractAddress: Address,
+  matchIds: readonly bigint[]
+): Promise<Array<EscrowMatchView & { matchId: bigint }>> {
+  if (matchIds.length === 0) {
+    return [];
+  }
+
+  const publicClient = getPublicClient();
+  const results = await publicClient.multicall({
+    allowFailure: true,
+    contracts: matchIds.map((matchId) => ({
+      address: contractAddress,
+      abi: escrowAbi,
+      functionName: "getMatch",
+      args: [matchId] as const
+    }))
+  });
+
+  return results.flatMap((result, index) =>
+    result.status === "success"
+      ? [
+          {
+            ...toEscrowMatchView(result.result as unknown as EscrowMatchResult),
+            matchId: matchIds[index]
+          }
+        ]
+      : []
+  );
+}
+
+function toEscrowMatchView(result: EscrowMatchResult): EscrowMatchView {
+  const {
+    creator,
+    stakeWei,
+    maxPlayers,
+    platformFeeBps,
+    status,
+    resultHash,
+    isPrivate,
+    roomCodeHash,
+    readyAt,
+    startedAt,
+    players
+  } = result;
+
+  return {
+    creator,
+    stakeWei: stakeWei.toString(),
+    maxPlayers: Number(maxPlayers),
+    platformFeeBps: Number(platformFeeBps),
+    status: ESCROW_MATCH_STATUSES[Number(status)] ?? ESCROW_MATCH_STATUSES[0],
+    resultHash,
+    isPrivate,
+    roomCodeHash,
+    readyAt: Number(readyAt),
+    startedAt: Number(startedAt),
+    players: [...players]
+  };
 }
 
 function computeVerifiedResultHash(

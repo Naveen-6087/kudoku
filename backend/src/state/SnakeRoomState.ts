@@ -6,6 +6,7 @@ import {
 } from "@colyseus/schema";
 import {
   DEFAULT_MATCH_CONFIG,
+  matchConfigForPlayers,
   safeRadiusAt,
   type Food,
   type MatchConfig,
@@ -89,12 +90,14 @@ export class PlayerPresenceState extends Schema {
   @schemaType("string") declare id: string;
   @schemaType("string") declare name: string;
   @schemaType("boolean") declare connected: boolean;
+  @schemaType("string") declare skinId: string;
 
-  constructor(id = "", name = "", connected = true) {
+  constructor(id = "", name = "", connected = true, skinId = "") {
     super();
     this.id = id;
     this.name = name;
     this.connected = connected;
+    this.skinId = skinId;
   }
 }
 
@@ -176,10 +179,7 @@ export function createInitialRoomState(roomId: string, roomConfig: RoomConfig): 
   state.roomId = roomId;
   state.maxPlayers = roomConfig.maxPlayers;
   state.phase = "lobby";
-  assignConfig(state.config, {
-    ...DEFAULT_MATCH_CONFIG,
-    durationMs: roomConfig.durationSeconds * 1_000
-  });
+  assignConfig(state.config, matchConfigForPlayers(roomConfig.maxPlayers, { durationMs: roomConfig.durationSeconds * 1_000 }));
   state.safeRadius = state.config.initialSafeRadius;
   return state;
 }
@@ -187,12 +187,13 @@ export function createInitialRoomState(roomId: string, roomConfig: RoomConfig): 
 export function syncPresence(
   state: SnakeRoomState,
   playerId: string,
-  values: { name: string; connected: boolean }
+  values: { name: string; connected: boolean; skinId?: string }
 ): void {
   const existing = state.players.get(playerId) ?? new PlayerPresenceState();
   existing.id = playerId;
   existing.name = values.name;
   existing.connected = values.connected;
+  existing.skinId = values.skinId ?? "";
   state.players.set(playerId, existing);
 }
 

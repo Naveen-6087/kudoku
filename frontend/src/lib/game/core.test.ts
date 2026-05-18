@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createMatch, orderPlacements, safeRadiusAt, serializeForReplay, stepMatch } from "./core";
+import { createMatch, matchConfigForPlayers, orderPlacements, safeRadiusAt, serializeForReplay, stepMatch } from "./core";
 
 describe("kudoku game core", () => {
   it("creates deterministic food layouts from a seed", () => {
@@ -34,6 +34,15 @@ describe("kudoku game core", () => {
 
     expect(safeRadiusAt(match)).toBe(100);
     expect(safeRadiusAt({ ...match, elapsedMs: 1_000 })).toBe(25);
+  });
+
+  it("scales arena size down for smaller player-count rooms", () => {
+    const trio = matchConfigForPlayers(3);
+    const full = matchConfigForPlayers(12);
+
+    expect(trio.initialSafeRadius).toBeLessThan(full.initialSafeRadius);
+    expect(trio.finalSafeRadius).toBeLessThan(full.finalSafeRadius);
+    expect(trio.initialFood).toBeLessThan(full.initialFood);
   });
 
   it("ends when the timer expires and ranks by mass", () => {
@@ -76,6 +85,25 @@ describe("kudoku game core", () => {
     expect(nextBoosted.snakes.a!.mass).toBe(nextBase.snakes.a!.mass);
     expect(nextBoosted.snakes.a!.boostEnergy).toBeLessThan(nextBase.snakes.a!.boostEnergy);
     expect(nextBoosted.snakes.a!.segments[0]!.y).toBeGreaterThan(nextBase.snakes.a!.segments[0]!.y);
+  });
+
+  it("cannot ramp boost before collecting food energy", () => {
+    const match = createMatch([{ id: "a" }, { id: "b" }], "seed-no-boost", { initialFood: 0 });
+    match.snakes.a!.boostEnergy = 0;
+
+    const next = stepMatch(match, [{ playerId: "a", angleRadians: Math.PI / 2, boosting: true }]);
+
+    expect(next.snakes.a!.boostCharge).toBe(0);
+  });
+
+  it("pulls nearby food slightly toward the snake head", () => {
+    const match = createMatch([{ id: "a" }, { id: "b" }], "seed-5b", { initialFood: 0 });
+    match.snakes.a!.segments = [{ x: 0, y: 0 }];
+    match.food = [{ id: "f-1", x: 42, y: 0, value: 1 }];
+
+    const next = stepMatch(match, [{ playerId: "a", angleRadians: 0 }]);
+
+    expect(next.food[0]?.x ?? Infinity).toBeLessThan(42);
   });
 
   it("lets a snake overlap its own body without dying", () => {
